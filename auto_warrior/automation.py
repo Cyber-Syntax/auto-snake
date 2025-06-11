@@ -324,16 +324,44 @@ class RespawnDetector:
         Returns:
             True if button was found and clicked, False otherwise
         """
+        import random
+        
         button_found, button_pos = self.detect_respawn_button(screenshot_cv)
         
         if button_found and button_pos:
-            print(f"🔄 Clicking respawn button at position {button_pos}")
-            self.click_controller.click_at_position(
-                button_pos[0], 
-                button_pos[1], 
-                CLICK_RESPAWN_DELAY
-            )
-            return True
+            # Get the respawn button template to calculate button dimensions
+            respawn_template = self.template_manager.get_respawn_button_template()
+            if respawn_template is not None:
+                h, w = respawn_template.shape[:2]
+                
+                # Calculate button boundaries (top-left corner from detection)
+                button_left = button_pos[0] - w // 2
+                button_top = button_pos[1] - h // 2
+                button_right = button_left + w
+                button_bottom = button_top + h
+                
+                # Add margin to stay away from edges 
+                margin = 5
+                
+                click_area_left = button_left + margin
+                click_area_top = button_top + margin
+                click_area_right = button_right - margin
+                click_area_bottom = button_bottom - margin
+                
+                # Generate random click position within the click area
+                random_x = random.randint(click_area_left, click_area_right)
+                random_y = random.randint(click_area_top, click_area_bottom)
+                
+                print(f"🔄 Clicking respawn button at position ({random_x}, {random_y})")
+                self.click_controller.click_at_position(
+                    random_x, 
+                    random_y, 
+                    CLICK_RESPAWN_DELAY
+                )
+                return True
+            else:
+                print("❌ Respawn button not found")
+                return False
             
         return False
 
