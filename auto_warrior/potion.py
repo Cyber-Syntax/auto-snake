@@ -1,3 +1,4 @@
+import logging
 import time
 
 from auto_warrior.constants import (
@@ -13,6 +14,7 @@ from auto_warrior.constants import (
 )
 from auto_warrior.input_control import InputController
 
+logger = logging.getLogger(__name__)
 
 class PotionManager:
     """Manages potion usage based on health levels."""

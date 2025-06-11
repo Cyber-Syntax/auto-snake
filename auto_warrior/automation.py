@@ -378,6 +378,10 @@ class GameAutomation:
 
             # Check for empty health and trigger emergency healing
             if self.health_detector.is_health_empty(screenshot_cv):
+                # Log health percentage for debugging false positives
+                health_percent = self.health_detector.get_health_percentage(screenshot_cv)
+                if self.debug_mode or health_percent > 0.5:  # Always log if health seems high
+                    logger.warning(f"Empty health detected but health percentage is {health_percent:.1%}")
                 return self._handle_empty_health_detection(screenshot_cv)
 
             # Normal health monitoring - get health percentage and use potions if needed
@@ -550,6 +554,8 @@ class GameAutomation:
         self.state.emergency_healing_active = False
         self.state.emergency_healing_attempts = 0
         self.state.emergency_healing_start_time = None
+        self.state.empty_health_detected = False
+        self.state.empty_health_count = 0
 
         if self.debug_mode:
             logger.debug("Emergency healing state reset")

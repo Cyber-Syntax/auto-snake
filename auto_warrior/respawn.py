@@ -1,3 +1,4 @@
+import logging
 import cv2
 import numpy as np
 
@@ -8,6 +9,7 @@ from auto_warrior.constants import (
 from auto_warrior.input_control import ClickController
 from auto_warrior.templates import TemplateManager
 
+logger = logging.getLogger(__name__)
 
 class RespawnDetector:
     """Handles respawn button detection and clicking."""
