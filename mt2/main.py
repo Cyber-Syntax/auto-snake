@@ -552,7 +552,7 @@ class GameAutomation:
     def use_health_potion(self, force_heal=False):
         """Function to heal when the bar decreases - uses multiple potions based on health level"""
         if self.debug_mode:
-            print(f"DEBUG: Checking health status...")
+            print("DEBUG: Checking health status...")
             print(f"DEBUG: Health threshold set to: {self.health_threshold:.2%}")
 
         # Check if we're in post-respawn healing mode
@@ -787,42 +787,7 @@ class GameAutomation:
         finally:
             listener.stop()
 
-    def save_config(self, filename="game_config.txt"):
-        """Save current configuration to file"""
-        config = {
-            "health_threshold": self.health_threshold,
-            "health_potion_key": self.health_potion_key,
-            # Mana config commented out - WIP
-            # 'mana_threshold': self.mana_threshold,
-            # 'mana_potion_key': self.mana_potion_key
-        }
 
-        with open(filename, "w") as f:
-            for key, value in config.items():
-                f.write(f"{key}={value}\n")
-
-        print(f"Configuration saved to {filename}")
-
-    def load_config(self, filename="game_config.txt"):
-        """Load configuration from file"""
-        try:
-            with open(filename, "r") as f:
-                for line in f:
-                    if "=" in line:
-                        key, value = line.strip().split("=", 1)
-                        if key in ["health_threshold"]:  # mana_threshold removed - WIP
-                            value = float(value)
-                        elif key in [
-                            "health_potion_key"
-                        ]:  # mana_potion_key removed - WIP
-                            value = str(value)
-                        setattr(self, key, value)
-
-            print(f"Configuration loaded from {filename}")
-            return True
-        except FileNotFoundError:
-            print(f"Configuration file {filename} not found")
-            return False
 
 
 def main():
@@ -847,10 +812,7 @@ def main():
         else:
             print("GameAutomation instance created")
 
-        # Load existing configuration if available
-        config_loaded = automation.load_config()
-        if debug_mode:
-            print(f"DEBUG: Configuration loaded: {config_loaded}")
+
 
         print("\nGame Automation - Health Monitoring Active")
         print("=========================================")
