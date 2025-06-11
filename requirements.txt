@@ -1,0 +1,28 @@
+# Core dependencies for auto-snake game automation
+opencv-python>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
+pyautogui>=0.9.54
+pynput>=1.7.6
+PyYAML>=6.0
+
+# Optional dependencies for enhanced functionality
+# These can be installed separately if needed
+
+# Development dependencies (install with: pip install -e .[dev])
+# pytest>=7.4.0
+# pytest-cov>=4.1.0
+# black>=23.0.0
+# isort>=5.12.0
+# flake8>=6.0.0
+# mypy>=1.5.0
+# pre-commit>=3.3.0
+
+# Documentation dependencies (install with: pip install -e .[docs])
+# sphinx>=7.1.0
+# sphinx-rtd-theme>=1.3.0
+# sphinx-autodoc-typehints>=1.24.0
+
+# Testing dependencies (install with: pip install -e .[test])
+# pytest-mock>=3.11.0
+# hypothesis>=6.82.0
