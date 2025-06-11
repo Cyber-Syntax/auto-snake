@@ -1,1 +1,3 @@
-This projects is written in Python for educational purposes.
+This projects is written in Python for educational purposes. 
+
+This project contains the automation script for the some of the games to learn Python.
