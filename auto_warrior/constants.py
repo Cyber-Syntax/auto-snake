@@ -34,7 +34,7 @@ EMPTY_HEALTH_THRESHOLD = 0.01  # Consider health empty below 1%
 
 # Template matching confidence thresholds
 MIN_TEMPLATE_CONFIDENCE = 0.3  # Minimum confidence for template matching
-EMPTY_HEALTH_CONFIDENCE = 0.7  # Confidence threshold for empty health detection
+EMPTY_HEALTH_CONFIDENCE = 0.85  # Confidence threshold for empty health detection (higher to reduce false positives)
 RESPAWN_BUTTON_CONFIDENCE = 0.8  # Confidence threshold for respawn button detection
 
 # Timing constants (in seconds)
