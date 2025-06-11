@@ -23,6 +23,9 @@ HEALTH_TEMPLATE_FILES = {
 EMPTY_HEALTH_TEMPLATE = "empty_health_bar.png"
 RESPAWN_BUTTON_TEMPLATE = "respawn_button.png"
 
+#TODO: Delete unnecessary imports
+# Some of them must be local variables
+
 # Health monitoring thresholds
 DEFAULT_HEALTH_THRESHOLD = 0.5  # Use health potion when below 50%
 CRITICAL_HEALTH_THRESHOLD = 0.20  # Critical health level (20%)
@@ -51,6 +54,11 @@ EMERGENCY_HEALING_MAX_ATTEMPTS = 3  # Maximum emergency healing attempts
 RESPAWN_WAIT_DURATION = 7.5  # Wait time before clicking respawn button
 POST_RESPAWN_HEAL_DURATION = 3.0  # Duration of post-respawn healing phase
 CLICK_RESPAWN_DELAY = 1.0  # Wait time after clicking respawn button
+# Respawn retry system
+RESPAWN_MAX_ATTEMPTS = 3
+RESPAWN_RETRY_DELAYS = [3.0, 5.0, 10.0]
+RESPAWN_FAILURE_MESSAGE = "❌ Respawn system failed after maximum attempts. Please restart the script manually."
+
 
 # Automation loop timing
 AUTOMATION_LOOP_DELAY = 2.0  # Standard delay between automation checks
