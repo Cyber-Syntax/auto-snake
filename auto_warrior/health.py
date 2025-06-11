@@ -204,7 +204,7 @@ class HealthDetector:
             return 1.0
         elif best_match == "empty":
             return 0.0
-        elif best_match in ["20", "40", "50"]:
+        elif best_match in ["20", "40", "50", "70", "90"]:
             return int(best_match) / 100.0
         else:
             if self.debug_mode:

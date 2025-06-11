@@ -18,6 +18,8 @@ HEALTH_TEMPLATE_FILES = {
     "20": "20_health_bar.png",
     "40": "40_health_bar.png",
     "50": "50_health_bar.png",
+    "70": "70_health_bar.png",
+    "90": "90_health_bar.png",
     "full": "full_health_bar.png",
 }
 EMPTY_HEALTH_TEMPLATE = "empty_health_bar.png"
@@ -27,9 +29,11 @@ RESPAWN_BUTTON_TEMPLATE = "respawn_button.png"
 # Some of them must be local variables
 
 # Health monitoring thresholds
-DEFAULT_HEALTH_THRESHOLD = 0.5  # Use health potion when below 50%
+DEFAULT_HEALTH_THRESHOLD = 0.9  # Use health potion when below 90%
 CRITICAL_HEALTH_THRESHOLD = 0.20  # Critical health level (20%)
 LOW_HEALTH_THRESHOLD = 0.40  # Low health level (40%)
+MEDIUM_HEALTH_THRESHOLD = 0.70  # Medium health level (70%)
+HIGH_HEALTH_THRESHOLD = 0.90  # High health level (90%)
 EMPTY_HEALTH_THRESHOLD = 0.01  # Consider health empty below 1%
 
 # Template matching confidence thresholds
@@ -76,11 +80,12 @@ START_KEY = "r"  # Key to start/restart automation
 
 # Potion usage based on health level
 POTION_USAGE_MAP = {
-    "critical": 4,  # Use 4 potions for critical health (≤20%)
-    "low": 2,  # Use 2 potions for low health (≤40%)
-    "medium": 1,  # Use 1 potion for medium health (≤50%)
+    "critical": 6,  # Use 6 potions for critical health (≤20%)
+    "low": 5,  # Use 5 potions for low health (≤40%)
+    "medium": 3,  # Use 3 potions for medium health (≤70%)
+    "high": 2,  # Use 2 potions for high health (≤90%)
     "post_respawn": 2,  # Use 2 potions after respawn
-    "emergency": 2,  # Use 2 potions for emergency healing before death check
+    "emergency": 6,  # Use 6 potions for emergency healing before death check
 }
 
 # Screenshot settings

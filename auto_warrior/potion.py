@@ -5,7 +5,9 @@ from auto_warrior.constants import (
     CRITICAL_HEALTH_THRESHOLD,
     DEFAULT_HEALTH_THRESHOLD,
     EMERGENCY_HEALING_WAIT,
+    HIGH_HEALTH_THRESHOLD,
     LOW_HEALTH_THRESHOLD,
+    MEDIUM_HEALTH_THRESHOLD,
     MULTIPLE_POTION_DELAY,
     POST_RESPAWN_POTION_DELAY,
     POST_RESPAWN_WAIT,
@@ -112,18 +114,23 @@ class PotionManager:
         """
         if health_percent <= CRITICAL_HEALTH_THRESHOLD:
             if self.debug_mode:
-                logger.debug(f"Critical health ({health_percent:.2%}) - using 4 potions")
+                logger.debug(f"Critical health ({health_percent:.2%}) - using 6 potions")
             return POTION_USAGE_MAP["critical"]
 
         elif health_percent <= LOW_HEALTH_THRESHOLD:
             if self.debug_mode:
-                logger.debug(f"Low health ({health_percent:.2%}) - using 2 potions")
+                logger.debug(f"Low health ({health_percent:.2%}) - using 5 potions")
             return POTION_USAGE_MAP["low"]
 
-        elif health_percent <= self.health_threshold:
+        elif health_percent <= MEDIUM_HEALTH_THRESHOLD:
             if self.debug_mode:
-                logger.debug(f"Medium health ({health_percent:.2%}) - using 1 potion")
+                logger.debug(f"Medium health ({health_percent:.2%}) - using 3 potions")
             return POTION_USAGE_MAP["medium"]
+
+        elif health_percent <= HIGH_HEALTH_THRESHOLD:
+            if self.debug_mode:
+                logger.debug(f"High health ({health_percent:.2%}) - using 2 potions")
+            return POTION_USAGE_MAP["high"]
 
         return 0
 
