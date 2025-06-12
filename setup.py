@@ -44,9 +44,8 @@ setup(
         "dev": [
             "pytest>=7.4.0",
             "pytest-cov>=4.1.0",
-            "black>=23.0.0",
+            "ruff>=0.11.12",
             "isort>=5.12.0",
-            "flake8>=6.0.0",
             "mypy>=1.5.0",
             "pre-commit>=3.3.0",
         ],
