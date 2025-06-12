@@ -4,7 +4,6 @@ import time
 from auto_warrior.constants import (
     CRITICAL_HEALTH_THRESHOLD,
     DEFAULT_HEALTH_THRESHOLD,
-    EMERGENCY_HEALING_WAIT,
     HIGH_HEALTH_THRESHOLD,
     LOW_HEALTH_THRESHOLD,
     MEDIUM_HEALTH_THRESHOLD,
@@ -33,35 +32,34 @@ class PotionManager:
         self.health_threshold = DEFAULT_HEALTH_THRESHOLD
 
     def use_health_potion(
-        self, health_percent: float, force_heal: bool = False, emergency_mode: bool = False
+        self, health_percent: float, force_heal: bool = False
     ) -> bool | str:
         """Use health potion based on health percentage.
 
         Args:
             health_percent: Current health percentage (0.0 to 1.0)
             force_heal: Whether to force healing (post-respawn)
-            emergency_mode: Whether this is emergency healing (don't return "empty")
 
         Returns:
-            True if potions were used, False if not needed, "empty" if health is empty (non-emergency only)
+            True if potions were used, False if not needed, "empty" if health is empty
         """
         if self.debug_mode:
             logger.debug(
-                f"Checking health status: {health_percent:.2%} (emergency: {emergency_mode})"
+                f"Checking health status: {health_percent:.2%} )"
             )
 
         if force_heal:
             return self._force_heal()
 
-        # Check if health is effectively empty - but not during emergency mode
-        if health_percent <= 0.01 and not emergency_mode:
+        # Check if health is effectively empty 
+        if health_percent <= 0.01:
             return "empty"
 
         # Determine potion usage
         potions_needed = self._calculate_potions_needed(health_percent)
 
         # In emergency mode, always use at least some potions if health is very low
-        if emergency_mode and health_percent <= 0.05 and potions_needed == 0:
+        if health_percent <= 0.05 and potions_needed == 0:
             potions_needed = POTION_USAGE_MAP["emergency"]
             if self.debug_mode:
                 logger.debug(
@@ -159,38 +157,6 @@ class PotionManager:
 
         if self.debug_mode:
             logger.debug(f"Finished using {potions_needed} potion(s)")
-
-        return True
-
-    def use_emergency_potions(self) -> bool:
-        """Use emergency potions when health is critically low before confirming death.
-
-        This method is called when empty health is detected to give the character
-        a chance to recover before confirming death status.
-
-        Returns:
-            True indicating emergency potions were used
-        """
-        potions_to_use = POTION_USAGE_MAP["emergency"]
-        print(
-            f"⚡ Emergency healing: Using {potions_to_use} health potion(s) before death check..."
-        )
-
-        for i in range(potions_to_use):
-            if self.debug_mode:
-                logger.debug(f"Emergency potion {i + 1}/{potions_to_use}")
-
-            self.input_controller.press_health_potion()
-
-            if i < potions_to_use - 1:
-                time.sleep(MULTIPLE_POTION_DELAY)
-
-        # Wait for potions to take effect before checking results
-        print(f"⏳ Waiting {EMERGENCY_HEALING_WAIT}s for emergency potions to take effect...")
-        time.sleep(EMERGENCY_HEALING_WAIT)
-
-        if self.debug_mode:
-            logger.debug(f"Finished emergency healing with {potions_to_use} potion(s)")
 
         return True
 

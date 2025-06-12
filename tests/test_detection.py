@@ -16,7 +16,7 @@ OUTPUT_DIR = Path("/tmp")
 
 # Thresholds - you can adjust these easily
 EMPTY_HEALTH_CONFIDENCE = 0.8
-MIN_TEMPLATE_CONFIDENCE = 0.5
+MIN_TEMPLATE_CONFIDENCE = 0.75
 RESPAWN_BUTTON_CONFIDENCE = 0.8
 
 def take_screenshot():
@@ -172,13 +172,18 @@ def run_single_test():
     detections = []
     
     # Test health templates
-    health_templates = {
+    templates = {
         "20% Health": "20_health_bar.png",
         "40% Health": "40_health_bar.png",
         "50% Health": "50_health_bar.png", 
         "70% Health": "70_health_bar.png",
         "90% Health": "90_health_bar.png",
-        "Full Health": "full_health_bar.png"
+        "Full Health": "full_health_bar.png",
+        "Mob Health": "mob_health_bar.png",
+        "Object Yang": "object_yang.png",
+        "Object Health Potion": "object_health_pot.png",
+        "Object Health Potionv2": "object_health_pot_v2.png",
+        "Auto Hunt Start Button": "auto_hunt_start_button.png"
     }
     
     best_health_match = None

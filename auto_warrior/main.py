@@ -2,19 +2,6 @@
 
 This module provides the command-line interface and main execution logic
 for the game automation system with proper argument parsing and error handling.
-
-Example:
-    Run with default settings:
-    
-    python -m auto_warrior.main
-    
-    Run with debug mode enabled:
-    
-    python -m auto_warrior.main --debug
-    
-    Run with custom images path:
-    
-    python -m auto_warrior.main --images-path /path/to/images
 """
 
 import argparse

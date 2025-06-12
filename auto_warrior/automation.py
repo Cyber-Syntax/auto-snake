@@ -18,8 +18,6 @@ from auto_warrior.constants import (
     AUTOMATION_LOOP_DELAY,
     DEBUG_SCREENSHOT_NAME,
     DEFAULT_HEALTH_THRESHOLD,
-    EMERGENCY_HEALING_MAX_ATTEMPTS,
-    EMERGENCY_HEALING_TIMEOUT,
     ERROR_MESSAGES,
     POST_RESPAWN_HEAL_DURATION,
     PYAUTOGUI_FAILSAFE,
@@ -49,11 +47,6 @@ class AutomationState:
     empty_health_detected: bool = False
     empty_health_count: int = 0
     last_empty_health_message: float = 0.0
-
-    # Emergency healing system (for death detection)
-    emergency_healing_active: bool = False
-    emergency_healing_attempts: int = 0
-    emergency_healing_start_time: float | None = None
 
     # Respawn system
     is_dead: bool = False
@@ -372,27 +365,15 @@ class GameAutomation:
             if self.debug_mode:
                 self.screenshot_manager.save_debug_screenshot(screenshot, DEBUG_SCREENSHOT_NAME)
 
-            # Handle emergency healing phase if active
-            if self.state.emergency_healing_active:
-                return self._handle_emergency_healing_phase(screenshot_cv)
-
-            # Check for empty health and trigger emergency healing
-            if self.health_detector.is_health_empty(screenshot_cv):
-                # Log health percentage for debugging false positives
-                health_percent = self.health_detector.get_health_percentage(screenshot_cv)
-                if self.debug_mode or health_percent > 0.5:  # Always log if health seems high
-                    logger.warning(f"Empty health detected but health percentage is {health_percent:.1%}")
-                return self._handle_empty_health_detection(screenshot_cv)
-
             # Normal health monitoring - get health percentage and use potions if needed
             health_percent = self.health_detector.get_health_percentage(screenshot_cv)
             potion_result = self.potion_manager.use_health_potion(
-                health_percent, emergency_mode=False
+                health_percent
             )
 
             # Handle recovery from previous emergency/death states
             if (
-                self.state.empty_health_detected or self.state.emergency_healing_active
+                self.state.empty_health_detected
             ) and health_percent > 0.1:
                 print(
                     f"🎉 Character has recovered! Health: {health_percent:.1%} - returning to normal monitoring"
@@ -413,7 +394,7 @@ class GameAutomation:
             return False
 
     def _handle_empty_health_detection(self, screenshot_cv: np.ndarray) -> bool:
-        """Handle empty health detection - start emergency healing before confirming death.
+        """Handle empty health detection .
 
         Args:
             screenshot_cv: OpenCV screenshot array
@@ -421,93 +402,12 @@ class GameAutomation:
         Returns:
             True to continue special handling
         """
-        if not self.state.emergency_healing_active and not self.state.is_dead:
+        if not self.state.is_dead:
             print("⚠️  " + ERROR_MESSAGES["empty_health_detected"])
 
-            # Start emergency healing phase
-            self.state.emergency_healing_active = True
-            self.state.emergency_healing_attempts = 1
-            self.state.emergency_healing_start_time = time.time()
             self.state.empty_health_detected = True
 
-            # Use emergency potions immediately
-            self.potion_manager.use_emergency_potions()
-
-            if self.debug_mode:
-                logger.debug(SUCCESS_MESSAGES["emergency_healing_started"])
-
         return True
-
-    def _handle_emergency_healing_phase(self, screenshot_cv: np.ndarray) -> bool:
-        """Handle the emergency healing phase after empty health detection.
-
-        Args:
-            screenshot_cv: OpenCV screenshot array
-
-        Returns:
-            True to continue emergency handling, False if resolved
-        """
-        current_time = time.time()
-
-        # Check if emergency healing has timed out
-        if (
-            self.state.emergency_healing_start_time
-            and current_time - self.state.emergency_healing_start_time > EMERGENCY_HEALING_TIMEOUT
-        ):
-            print("⏰ " + ERROR_MESSAGES["emergency_healing_timeout"])
-            return self._confirm_character_death(screenshot_cv)
-
-        # Check if we've exceeded max attempts
-        if self.state.emergency_healing_attempts >= EMERGENCY_HEALING_MAX_ATTEMPTS:
-            print(
-                f"💊 {ERROR_MESSAGES['max_emergency_attempts']} ({EMERGENCY_HEALING_MAX_ATTEMPTS})"
-            )
-            return self._confirm_character_death(screenshot_cv)
-
-        # Wait a moment for potions to take effect, then check health again
-        time.sleep(1.0)
-
-        # Re-check health after emergency potions
-        health_percent = self.health_detector.get_health_percentage(screenshot_cv)
-        is_still_empty = self.health_detector.is_health_empty(screenshot_cv)
-
-        if self.debug_mode:
-            logger.debug(
-                f"Emergency healing check: health={health_percent:.2%}, empty={is_still_empty}, attempt={self.state.emergency_healing_attempts}"
-            )
-
-        print(
-            f"🔍 Health check after emergency potions: {health_percent:.1%} ({'Empty' if is_still_empty else 'Detected'})"
-        )
-
-        if not is_still_empty and health_percent > 0.05:  # Health recovered (>5%)
-            print(
-                f"✅ {SUCCESS_MESSAGES['emergency_healing_success']} Health now at {health_percent:.1%}"
-            )
-            self._reset_emergency_healing_state()
-            return False  # Return to normal monitoring
-
-        # Still empty health - check for respawn button to confirm death
-        button_found, _ = self.respawn_detector.detect_respawn_button(screenshot_cv)
-
-        if button_found:
-            print("🔄 Respawn button detected - character is confirmed dead!")
-            return self._confirm_character_death(screenshot_cv)
-
-        # No respawn button yet - try emergency healing again if attempts remaining
-        if self.state.emergency_healing_attempts < EMERGENCY_HEALING_MAX_ATTEMPTS:
-            self.state.emergency_healing_attempts += 1
-            print(
-                f"💊 Emergency healing attempt {self.state.emergency_healing_attempts}/{EMERGENCY_HEALING_MAX_ATTEMPTS} - health still critical"
-            )
-            self.potion_manager.use_emergency_potions()
-            return True
-
-        # Max attempts reached but no respawn button - assume death
-        print(
-            "⚠️  Max emergency attempts reached and no respawn button visible - assuming character death"
-        )
-        return self._confirm_character_death(screenshot_cv)
 
     def _confirm_character_death(self, screenshot_cv: np.ndarray) -> bool:
         """Confirm character death and start respawn sequence.
@@ -521,7 +421,6 @@ class GameAutomation:
         if not self.state.is_dead:
             print("💀 " + SUCCESS_MESSAGES["death_confirmed"])
             self.state.is_dead = True
-            self._reset_emergency_healing_state()
 
             current_time = time.time()
 
@@ -549,16 +448,6 @@ class GameAutomation:
         time.sleep(1.0)
         return True
 
-    def _reset_emergency_healing_state(self) -> None:
-        """Reset emergency healing state variables."""
-        self.state.emergency_healing_active = False
-        self.state.emergency_healing_attempts = 0
-        self.state.emergency_healing_start_time = None
-        self.state.empty_health_detected = False
-        self.state.empty_health_count = 0
-
-        if self.debug_mode:
-            logger.debug("Emergency healing state reset")
 
     def _handle_health_recovery(self) -> None:
         """Handle recovery from empty health state."""
@@ -569,7 +458,6 @@ class GameAutomation:
         self.state.is_dead = False
         self.state.respawn_wait_start = None
         self.state.post_respawn_heal_time = None
-        self._reset_emergency_healing_state()
 
     def _print_automation_info(self) -> None:
         """Print automation information and controls."""

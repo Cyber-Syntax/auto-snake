@@ -49,10 +49,7 @@ MULTIPLE_POTION_DELAY = 0.3  # Delay between multiple potion presses
 POST_RESPAWN_POTION_DELAY = 0.5  # Longer delay for post-respawn healing
 POST_RESPAWN_WAIT = 2.0  # Wait time after post-respawn healing
 
-# Emergency healing system timing
-EMERGENCY_HEALING_WAIT = 2.0  # Wait time after emergency potions before death check
-EMERGENCY_HEALING_TIMEOUT = 10.0  # Max time to spend in emergency healing mode
-EMERGENCY_HEALING_MAX_ATTEMPTS = 3  # Maximum emergency healing attempts
+
 
 # Respawn system timing
 RESPAWN_WAIT_DURATION = 7.5  # Wait time before clicking respawn button
@@ -74,7 +71,7 @@ SCREENSHOT_DELAY = 0.05  # Delay to ensure screenshot file is written
 # Key bindings
 DEFAULT_HEALTH_POTION_KEY = "1"  # Key for health potion
 DEFAULT_MANA_POTION_KEY = "2"  # Key for mana potion (WIP)
-DEFAULT_SKILL_KEYS = ["3", "4", "5", "6"]  # Keys for skills
+DEFAULT_SKILL_KEYS = ["3", "4"]  # Keys for skills
 QUIT_KEY = "q"  # Key to quit automation
 START_KEY = "r"  # Key to start/restart automation
 
@@ -85,7 +82,6 @@ POTION_USAGE_MAP = {
     "medium": 3,  # Use 3 potions for medium health (≤70%)
     "high": 2,  # Use 2 potions for high health (≤90%)
     "post_respawn": 2,  # Use 2 potions after respawn
-    "emergency": 6,  # Use 6 potions for emergency healing before death check
 }
 
 # Screenshot settings
@@ -115,10 +111,8 @@ ERROR_MESSAGES = {
     "screenshot_failed": "Screenshot capture failed",
     "template_load_failed": "Failed to load template",
     "key_press_failed": "Failed to press key",
-    "empty_health_detected": "EMPTY HEALTH BAR DETECTED - Starting emergency healing sequence",
+    "empty_health_detected": "EMPTY HEALTH BAR DETECTED",
     "respawn_button_not_found": "Respawn button not found, extending wait...",
-    "emergency_healing_timeout": "Emergency healing timed out - character may be dead",
-    "max_emergency_attempts": "Maximum emergency healing attempts reached",
 }
 
 # Success messages
@@ -127,9 +121,7 @@ SUCCESS_MESSAGES = {
     "respawn_clicked": "Respawn button clicked! Starting post-respawn healing...",
     "health_restored": "Health restored! Character has been revived - resuming normal automation...",
     "automation_started": "Starting automation... Press 'q' to quit",
-    "emergency_healing_started": "Emergency healing initiated - attempting to save character",
-    "emergency_healing_success": "Emergency healing successful! Character recovered from critical health",
-    "death_confirmed": "Character death confirmed after emergency healing attempts",
+    "death_confirmed": "Character death confirmed ",
 }
 
 # Mana system constants (Work In Progress)

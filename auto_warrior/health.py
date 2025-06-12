@@ -78,16 +78,6 @@ class HealthDetector:
 
             is_empty = max_val > EMPTY_HEALTH_CONFIDENCE
 
-            # Cross-check with health percentage to catch false positives
-            if is_empty:
-                health_percent = self.get_health_percentage(screenshot_cv)
-                if health_percent > 0.8:  # Health is >80% but empty detection triggered
-                    logger.warning(
-                        f"INCONSISTENCY DETECTED: Empty health template matched (confidence: {max_val:.3f}) "
-                        f"but health percentage is {health_percent:.1%}. Treating as NOT empty to prevent false positive."
-                    )
-                    return False
-
             if self.debug_mode and is_empty:
                 logger.debug(f"Empty health bar detected with confidence: {max_val:.3f}")
 
