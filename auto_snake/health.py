@@ -2,12 +2,12 @@ import logging
 import cv2
 import numpy as np
 
-from auto_warrior.constants import (
+from auto_snake.constants import (
     EMPTY_HEALTH_CONFIDENCE,
     MIN_TEMPLATE_CONFIDENCE,
 )
-from auto_warrior.exceptions import TemplateMatchError
-from auto_warrior.templates import TemplateManager
+from auto_snake.exceptions import TemplateMatchError
+from auto_snake.templates import TemplateManager
 
 logger = logging.getLogger(__name__)
 

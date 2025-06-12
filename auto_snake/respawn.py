@@ -2,12 +2,12 @@ import logging
 import cv2
 import numpy as np
 
-from auto_warrior.constants import (
+from auto_snake.constants import (
     CLICK_RESPAWN_DELAY,
     RESPAWN_BUTTON_CONFIDENCE,
 )
-from auto_warrior.input_control import ClickController
-from auto_warrior.templates import TemplateManager
+from auto_snake.input_control import ClickController
+from auto_snake.templates import TemplateManager
 
 logger = logging.getLogger(__name__)
 

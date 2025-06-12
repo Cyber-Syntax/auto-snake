@@ -1,4 +1,4 @@
-"""Configuration constants for the auto_warrior package.
+"""Configuration constants for the auto_snake package.
 
 This module contains all configuration constants used throughout the
 automation system, including timing, thresholds, and key bindings.
@@ -13,7 +13,7 @@ LICENSE = "BSD 3-Clause License"
 
 # File and directory paths
 repo_dir = Path(__file__).parent.parent
-DEFAULT_IMAGES_PATH = repo_dir / "auto_warrior/images"
+DEFAULT_IMAGES_PATH = repo_dir / "auto_snake/images"
 HEALTH_TEMPLATE_FILES = {
     "20": "20_health_bar.png",
     "40": "40_health_bar.png",
@@ -38,7 +38,9 @@ EMPTY_HEALTH_THRESHOLD = 0.01  # Consider health empty below 1%
 
 # Template matching confidence thresholds
 MIN_TEMPLATE_CONFIDENCE = 0.3  # Minimum confidence for template matching
-EMPTY_HEALTH_CONFIDENCE = 0.85  # Confidence threshold for empty health detection (higher to reduce false positives)
+EMPTY_HEALTH_CONFIDENCE = (
+    0.85  # Confidence threshold for empty health detection (higher to reduce false positives)
+)
 RESPAWN_BUTTON_CONFIDENCE = 0.8  # Confidence threshold for respawn button detection
 
 # Timing constants (in seconds)
@@ -137,3 +139,29 @@ SUCCESS_MESSAGES = {
 DEFAULT_MANA_THRESHOLD = 0.5  # Use mana potion when below 50%
 MANA_COLOR_RANGE_LOWER = [100, 100, 100]  # Blue lower bound for mana detection
 MANA_COLOR_RANGE_UPPER = [130, 255, 255]  # Blue upper bound for mana detection
+
+# Multi-threading configuration
+SCREENSHOT_QUEUE_SIZE = 10  # Maximum screenshots in queue
+DETECTION_THREAD_COUNT = 2  # Number of detection threads
+SCREENSHOT_THREAD_DELAY = 0.1  # Delay between screenshots (100ms = 10 FPS)
+
+# Thread priorities (lower = higher priority)
+PRIORITY_RESPAWN = 1
+PRIORITY_EMERGENCY_HEAL = 2
+PRIORITY_NORMAL_HEAL = 5
+PRIORITY_SKILL_USE = 8
+
+# Queue timeouts
+SCREENSHOT_TIMEOUT = 1.0
+DETECTION_TIMEOUT = 0.5
+ACTION_TIMEOUT = 2.0
+
+# C++ Extension constants
+CPP_TEMPLATE_MATCH_THRESHOLD = 0.7  # Default threshold for C++ template matching
+CPP_EMPTY_HEALTH_THRESHOLD = 0.8  # Threshold for empty health detection in C++
+CPP_BATCH_SIZE = 5  # Number of screenshots to process in batch
+CPP_BENCHMARK_ITERATIONS = 100  # Default iterations for benchmarking
+
+# Performance monitoring
+PERFORMANCE_LOG_INTERVAL = 60  # Log performance stats every 60 seconds
+MAX_PERFORMANCE_HISTORY = 1000  # Keep last 1000 performance measurements

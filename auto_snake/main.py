@@ -6,15 +6,15 @@ for the game automation system with proper argument parsing and error handling.
 Example:
     Run with default settings:
     
-    python -m auto_warrior.main
+    python -m auto_snake.main
     
     Run with debug mode enabled:
     
-    python -m auto_warrior.main --debug
+    python -m auto_snake.main --debug
     
     Run with custom images path:
     
-    python -m auto_warrior.main --images-path /path/to/images
+    python -m auto_snake.main --images-path /path/to/images
 """
 
 import argparse
@@ -28,16 +28,16 @@ from typing import NoReturn
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from auto_warrior.automation import GameAutomation
-from auto_warrior.constants import (
+from auto_snake.automation import GameAutomation
+from auto_snake.constants import (
     AUTHOR,
     DEFAULT_HEALTH_THRESHOLD,
     LICENSE,
     MAIN_LOOP_DELAY,
     VERSION,
 )
-from auto_warrior.exceptions import AutoSnakeError
-from auto_warrior.input_control import AutomationController
+from auto_snake.exceptions import AutoSnakeError
+from auto_snake.input_control import AutomationController
 
 
 def setup_logging(debug_mode: bool) -> None:

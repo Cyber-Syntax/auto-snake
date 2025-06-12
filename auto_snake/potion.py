@@ -1,7 +1,7 @@
 import logging
 import time
 
-from auto_warrior.constants import (
+from auto_snake.constants import (
     CRITICAL_HEALTH_THRESHOLD,
     DEFAULT_HEALTH_THRESHOLD,
     EMERGENCY_HEALING_WAIT,
@@ -14,7 +14,7 @@ from auto_warrior.constants import (
     POTION_EFFECT_WAIT,
     POTION_USAGE_MAP,
 )
-from auto_warrior.input_control import InputController
+from auto_snake.input_control import InputController
 
 logger = logging.getLogger(__name__)
 

@@ -12,13 +12,13 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from auto_warrior.constants import (
+from auto_snake.constants import (
     DEFAULT_IMAGES_PATH,
     EMPTY_HEALTH_TEMPLATE,
     HEALTH_TEMPLATE_FILES,
     RESPAWN_BUTTON_TEMPLATE,
 )
-from auto_warrior.exceptions import TemplateLoadError
+from auto_snake.exceptions import TemplateLoadError
 
 logger = logging.getLogger(__name__)
 
@@ -296,3 +296,102 @@ class TemplateManager:
                 issues.append(f"Health template {percentage}% has invalid dimensions")
 
         return issues
+
+    def get_template_path(self, template_name: str) -> Path | None:
+        """Get the file path for a template by name.
+
+        Args:
+            template_name: Name of the template to get path for
+
+        Returns:
+            Path to the template file or None if not found
+        """
+        # Map common template names to file names
+        template_mapping = {
+            "health_bar": "full_health_bar.png",
+            "empty_health": "empty_health_bar.png",
+            "respawn_button": "respawn_button.png",
+            "20_health": "20_health_bar.png",
+            "40_health": "40_health_bar.png",
+            "50_health": "50_health_bar.png",
+            "70_health": "70_health_bar.png",
+            "90_health": "90_health_bar.png",
+            "full_health": "full_health_bar.png",
+            "left_empty_health": "left_empty_health_bar.png",
+        }
+
+        # Try direct mapping first
+        if template_name in template_mapping:
+            template_file = template_mapping[template_name]
+        # Try health template files mapping
+        elif template_name in HEALTH_TEMPLATE_FILES:
+            template_file = HEALTH_TEMPLATE_FILES[template_name]
+        # Try as direct filename
+        elif template_name.endswith(".png"):
+            template_file = template_name
+        else:
+            # Try adding .png extension
+            template_file = f"{template_name}.png"
+
+        template_path = self.images_path / template_file
+
+        if template_path.exists():
+            return template_path
+
+        if self.debug_mode:
+            logger.debug(f"Template path not found: {template_path}")
+
+        return None
+
+    def find_template(
+        self, screenshot_cv: np.ndarray, template_name: str, threshold: float = 0.8
+    ) -> tuple[int, int] | None:
+        """Find a template in the screenshot using template matching.
+
+        Args:
+            screenshot_cv: OpenCV screenshot array
+            template_name: Name of the template to find
+            threshold: Confidence threshold for matching
+
+        Returns:
+            (x, y) coordinates of match or None if not found
+        """
+        # Get the template based on name
+        template = None
+
+        if template_name in ["health_bar", "full_health"]:
+            template = self.get_health_template("full")
+        elif template_name == "empty_health":
+            template = self.get_empty_health_template()
+        elif template_name == "respawn_button":
+            template = self.get_respawn_button_template()
+        elif template_name in self.health_templates:
+            template = self.health_templates[template_name]
+
+        if template is None:
+            if self.debug_mode:
+                logger.debug(f"Template not found for: {template_name}")
+            return None
+
+        try:
+            # Convert to grayscale for matching
+            screenshot_gray = cv2.cvtColor(screenshot_cv, cv2.COLOR_BGR2GRAY)
+            template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+
+            # Perform template matching
+            result = cv2.matchTemplate(screenshot_gray, template_gray, cv2.TM_CCOEFF_NORMED)
+            _, max_val, _, max_loc = cv2.minMaxLoc(result)
+
+            if max_val >= threshold:
+                return max_loc
+            else:
+                if self.debug_mode:
+                    logger.debug(
+                        f"Template {template_name} match confidence {max_val:.3f} below threshold {threshold:.3f}"
+                    )
+                return None
+
+        except Exception as e:
+            if self.debug_mode:
+                logger.debug(f"Error in template matching for {template_name}: {e}")
+            return None

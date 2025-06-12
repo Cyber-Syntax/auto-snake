@@ -18,12 +18,12 @@ import numpy as np
 import pyautogui
 from PIL import Image
 
-from auto_warrior.constants import (
+from auto_snake.constants import (
     SCREENSHOT_DELAY,
     SCREENSHOT_TIMEOUT,
     TEMP_SCREENSHOT_PREFIX,
 )
-from auto_warrior.exceptions import ScreenshotError
+from auto_snake.exceptions import ScreenshotError
 
 logger = logging.getLogger(__name__)
 

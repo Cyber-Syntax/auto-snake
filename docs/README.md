@@ -26,7 +26,7 @@ The system follows modern Python practices with a clean, modular architecture:
 
 ```
 auto-snake/
-├── src/auto_warrior/          # Main package
+├── src/auto_snake/          # Main package
 │   ├── __init__.py          # Package initialization
 │   ├── automation.py        # Core automation logic
 │   ├── constants.py         # Configuration constants
@@ -66,7 +66,7 @@ pip install -e .[dev,test,docs]
 pip install -r requirements.txt
 
 # Run from source
-python -m auto_warrior.main
+python -m auto_snake.main
 ```
 
 ## Template Setup
@@ -138,7 +138,7 @@ The system can be configured through:
 Main automation controller that orchestrates all functionality.
 
 ```python
-from auto_warrior import GameAutomation
+from auto_snake import GameAutomation
 
 # Initialize automation
 automation = GameAutomation(
@@ -163,7 +163,7 @@ info = automation.get_automation_info()
 Handles health bar detection and analysis.
 
 ```python
-from auto_warrior.automation import HealthDetector
+from auto_snake.automation import HealthDetector
 
 detector = HealthDetector(template_manager, debug_mode=True)
 health_percent = detector.get_health_percentage(screenshot_array)
@@ -174,7 +174,7 @@ is_empty = detector.is_health_empty(screenshot_array)
 Manages intelligent potion usage based on health levels.
 
 ```python
-from auto_warrior.automation import PotionManager
+from auto_snake.automation import PotionManager
 
 manager = PotionManager(input_controller, debug_mode=True)
 result = manager.use_health_potion(health_percent=0.3)
@@ -185,7 +185,7 @@ manager.set_health_threshold(0.4)
 Handles respawn button detection and clicking.
 
 ```python
-from auto_warrior.automation import RespawnDetector
+from auto_snake.automation import RespawnDetector
 
 detector = RespawnDetector(template_manager, click_controller)
 found, position = detector.detect_respawn_button(screenshot_array)
@@ -196,7 +196,7 @@ success = detector.click_respawn_button(screenshot_array)
 
 ### Default Settings
 
-The system comes with sensible defaults in `auto_warrior/constants.py`:
+The system comes with sensible defaults in `auto_snake/constants.py`:
 
 - **Health Threshold**: 50% (use potions when health drops below)
 - **Critical Health**: 20% (use 4 potions)
@@ -311,7 +311,7 @@ mypy src/
 pytest
 
 # Run with coverage
-pytest --cov=auto_warrior
+pytest --cov=auto_snake
 
 # Run specific test file
 pytest tests/test_automation.py

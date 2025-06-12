@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 # Configuration
-IMAGES_DIR = Path(__file__).parent.parent / "auto_warrior" / "images"
+IMAGES_DIR = Path(__file__).parent.parent / "auto_snake" / "images"
 OUTPUT_DIR = Path("/tmp")
 
 # Thresholds - you can adjust these easily

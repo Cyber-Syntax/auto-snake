@@ -9,16 +9,16 @@ from unittest.mock import Mock, patch, MagicMock
 import numpy as np
 from PIL import Image
 
-from auto_warrior.automation import (
+from auto_snake.automation import (
     GameAutomation,
     HealthDetector,
     RespawnDetector,
     PotionManager,
     AutomationState,
 )
-from auto_warrior.exceptions import AutoSnakeError, TemplateMatchError
-from auto_warrior.templates import TemplateManager
-from auto_warrior.input_control import InputController, ClickController
+from auto_snake.exceptions import AutoSnakeError, TemplateMatchError
+from auto_snake.templates import TemplateManager
+from auto_snake.input_control import InputController, ClickController
 
 
 class TestAutomationState:
@@ -306,11 +306,11 @@ class TestGameAutomation:
     @pytest.fixture
     def mock_dependencies(self):
         """Create mocked dependencies for GameAutomation."""
-        with patch('auto_warrior.automation.TemplateManager') as mock_template_manager, \
-             patch('auto_warrior.automation.ScreenshotManager') as mock_screenshot_manager, \
-             patch('auto_warrior.automation.InputController') as mock_input_controller, \
-             patch('auto_warrior.automation.ClickController') as mock_click_controller, \
-             patch('auto_warrior.automation.AutomationController') as mock_automation_controller:
+        with patch('auto_snake.automation.TemplateManager') as mock_template_manager, \
+             patch('auto_snake.automation.ScreenshotManager') as mock_screenshot_manager, \
+             patch('auto_snake.automation.InputController') as mock_input_controller, \
+             patch('auto_snake.automation.ClickController') as mock_click_controller, \
+             patch('auto_snake.automation.AutomationController') as mock_automation_controller:
             
             # Configure template manager mock
             template_instance = mock_template_manager.return_value
@@ -359,7 +359,7 @@ class TestGameAutomation:
     
     def test_game_automation_template_load_failure(self):
         """Test GameAutomation handles template loading failure."""
-        with patch('auto_warrior.automation.TemplateManager') as mock_template_manager:
+        with patch('auto_snake.automation.TemplateManager') as mock_template_manager:
             template_instance = mock_template_manager.return_value
             template_instance.load_all_templates.side_effect = Exception("Template load failed")
             
@@ -402,7 +402,7 @@ class TestIntegration:
         """Create a sample PIL image for testing."""
         return Image.new('RGB', (800, 600), color='red')
     
-    @patch('auto_warrior.automation.pyautogui')
+    @patch('auto_snake.automation.pyautogui')
     def test_full_automation_cycle_mock(self, mock_pyautogui, sample_image):
         """Test a full automation cycle with mocked components."""
         # This test would require extensive mocking and is more suitable
@@ -424,11 +424,11 @@ def sample_templates():
 
 def test_module_imports():
     """Test that all required modules can be imported."""
-    from auto_warrior.automation import GameAutomation
-    from auto_warrior.templates import TemplateManager
-    from auto_warrior.screenshot import ScreenshotManager
-    from auto_warrior.input_control import InputController
-    from auto_warrior.exceptions import AutoSnakeError
+    from auto_snake.automation import GameAutomation
+    from auto_snake.templates import TemplateManager
+    from auto_snake.screenshot import ScreenshotManager
+    from auto_snake.input_control import InputController
+    from auto_snake.exceptions import AutoSnakeError
     
     # If we get here, all imports succeeded
     assert True

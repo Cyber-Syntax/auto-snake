@@ -1,4 +1,4 @@
-"""Custom exceptions for the auto_warrior package.
+"""Custom exceptions for the auto_snake package.
 
 This module defines specific exception types for different error conditions
 that can occur during game automation operations.
@@ -6,7 +6,7 @@ that can occur during game automation operations.
 
 
 class AutoSnakeError(Exception):
-    """Base exception class for all auto_warrior related errors."""
+    """Base exception class for all auto_snake related errors."""
 
     def __init__(self, message: str, details: str | None = None) -> None:
         """Initialize the exception.

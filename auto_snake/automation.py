@@ -14,7 +14,7 @@ from typing import Any
 import numpy as np
 import pyautogui
 
-from auto_warrior.constants import (
+from auto_snake.constants import (
     AUTOMATION_LOOP_DELAY,
     DEBUG_SCREENSHOT_NAME,
     DEFAULT_HEALTH_THRESHOLD,
@@ -30,13 +30,13 @@ from auto_warrior.constants import (
     RESPAWN_WAIT_DURATION,
     SUCCESS_MESSAGES,
 )
-from auto_warrior.exceptions import AutoSnakeError
-from auto_warrior.input_control import AutomationController, ClickController, InputController
-from auto_warrior.potion import PotionManager
-from auto_warrior.screenshot import ScreenshotManager
-from auto_warrior.templates import TemplateManager
-from auto_warrior.health import HealthDetector
-from auto_warrior.respawn import RespawnDetector
+from auto_snake.exceptions import AutoSnakeError
+from auto_snake.input_control import AutomationController, ClickController, InputController
+from auto_snake.potion import PotionManager
+from auto_snake.screenshot import ScreenshotManager
+from auto_snake.templates import TemplateManager
+from auto_snake.health import HealthDetector
+from auto_snake.respawn import RespawnDetector
 
 logger = logging.getLogger(__name__)
 

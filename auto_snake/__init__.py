@@ -6,14 +6,14 @@ respawn detection, and potion usage in gaming environments.
 Example:
     Basic usage:
     
-    from auto_warrior import GameAutomation
+    from auto_snake import GameAutomation
     
     automation = GameAutomation(debug_mode=False)
     automation.run_automation()
 """
 
-from auto_warrior.automation import GameAutomation
-from auto_warrior.exceptions import (
+from auto_snake.automation import GameAutomation
+from auto_snake.exceptions import (
     AutoSnakeError,
     ScreenshotError,
     TemplateLoadError,

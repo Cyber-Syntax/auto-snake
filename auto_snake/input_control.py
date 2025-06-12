@@ -13,7 +13,7 @@ import pyautogui
 from pynput import keyboard as pynput_keyboard
 from pynput.keyboard import Controller, Key
 
-from auto_warrior.constants import (
+from auto_snake.constants import (
     DEFAULT_HEALTH_POTION_KEY,
     DEFAULT_MANA_POTION_KEY,
     DEFAULT_SKILL_KEYS,
@@ -22,7 +22,7 @@ from auto_warrior.constants import (
     QUIT_KEY,
     START_KEY,
 )
-from auto_warrior.exceptions import KeyPressError
+from auto_snake.exceptions import KeyPressError
 
 logger = logging.getLogger(__name__)
 
