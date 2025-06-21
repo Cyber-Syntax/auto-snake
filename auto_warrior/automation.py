@@ -29,12 +29,14 @@ from auto_warrior.constants import (
     SUCCESS_MESSAGES,
 )
 from auto_warrior.exceptions import AutoSnakeError
-from auto_warrior.input_control import AutomationController, ClickController, InputController
-from auto_warrior.potion import PotionManager
-from auto_warrior.screenshot import ScreenshotManager
-from auto_warrior.templates import TemplateManager
 from auto_warrior.health import HealthDetector
+from auto_warrior.input_control import AutomationController, ClickController, InputController
+from auto_warrior.mana import ManaDetector
+from auto_warrior.potion import PotionManager
 from auto_warrior.respawn import RespawnDetector
+from auto_warrior.screenshot import ScreenshotManager
+from auto_warrior.skills import SkillManager
+from auto_warrior.templates import TemplateManager
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,10 @@ class AutomationState:
     respawn_attempt_count: int = 0
     respawn_last_attempt_time: float | None = None
 
+    # Skills system
+    last_skill_usage_time: float = 0.0
+    skills_used_count: int = 0
+
     # Loop control
     automation_running: bool = False
     loop_count: int = 0
@@ -68,6 +74,7 @@ class GameAutomation:
         debug_mode: bool = False,
         images_path: Path | str | None = None,
         health_threshold: float = DEFAULT_HEALTH_THRESHOLD,
+        mana_threshold: float = 0.5,
     ) -> None:
         """Initialize the game automation system.
 
@@ -75,6 +82,7 @@ class GameAutomation:
             debug_mode: Whether to enable debug mode for detailed logging
             images_path: Path to directory containing template images
             health_threshold: Health percentage threshold for potion usage
+            mana_threshold: Mana percentage threshold for potion usage
         """
         self.debug_mode = debug_mode
         self.state = AutomationState()
@@ -84,19 +92,20 @@ class GameAutomation:
         pyautogui.PAUSE = PYAUTOGUI_PAUSE
 
         # Initialize components
-        self._initialize_components(images_path, health_threshold)
+        self._initialize_components(images_path, health_threshold, mana_threshold)
 
         if self.debug_mode:
             logger.debug("GameAutomation initialized successfully")
 
     def _initialize_components(
-        self, images_path: Path | str | None, health_threshold: float
+        self, images_path: Path | str | None, health_threshold: float, mana_threshold: float
     ) -> None:
         """Initialize all automation components.
 
         Args:
             images_path: Path to template images
             health_threshold: Health threshold for potions
+            mana_threshold: Mana threshold for potions
         """
         # Core components
         self.screenshot_manager = ScreenshotManager(self.debug_mode)
@@ -107,11 +116,14 @@ class GameAutomation:
 
         # Specialized components
         self.health_detector = HealthDetector(self.template_manager, self.debug_mode)
+        self.mana_detector = ManaDetector(self.template_manager, self.debug_mode)
         self.respawn_detector = RespawnDetector(
             self.template_manager, self.click_controller, self.debug_mode
         )
         self.potion_manager = PotionManager(self.input_controller, self.debug_mode)
         self.potion_manager.set_health_threshold(health_threshold)
+        self.potion_manager.set_mana_threshold(mana_threshold)
+        self.skill_manager = SkillManager(self.input_controller)
 
         # Load templates
         try:
@@ -156,12 +168,52 @@ class GameAutomation:
             if self._handle_respawn_waiting(current_time):
                 continue
 
-            # Normal health monitoring
-            if self._handle_health_monitoring():
+            # Normal health and mana monitoring
+            if self._handle_health_and_mana_monitoring():
                 continue
+
+            # Handle skill usage
+            self._handle_skill_usage()
 
             # Standard loop delay
             time.sleep(AUTOMATION_LOOP_DELAY)
+
+    def _handle_skill_usage(self) -> None:
+        """Handle automatic skill usage based on availability and cooldowns."""
+        try:
+            # Get all ready skills
+            ready_skills = self.skill_manager.get_ready_skills()
+
+            if not ready_skills:
+                return
+
+            current_time = time.time()
+
+            # Only use skills if enough time has passed since last skill usage
+            # This prevents skill spam and allows for better coordination
+            time_since_last_skill = current_time - self.state.last_skill_usage_time
+            if time_since_last_skill < 3.0:  # 3 second minimum between skill usages
+                return
+
+            # Use available skills (prioritize by ID for consistent order)
+            used_skills = []
+            for skill in sorted(ready_skills, key=lambda s: s.config.id):
+                if self.skill_manager.use_skill(skill.config.id):
+                    used_skills.append(skill.config.id)
+                    self.state.last_skill_usage_time = current_time
+                    self.state.skills_used_count += 1
+
+                    if self.debug_mode:
+                        logger.debug(f"Auto-used skill {skill.config.id} (key: {skill.config.key})")
+
+                    # Only use one skill at a time to avoid conflicts
+                    break
+
+            if used_skills:
+                print(f"🔥 Used skill(s): {used_skills}")
+
+        except Exception as e:
+            logger.error(f"Error in skill usage handling: {e}")
 
     def _handle_post_respawn_healing(self, current_time: float) -> bool:
         """Handle post-respawn healing phase.
@@ -350,14 +402,14 @@ class GameAutomation:
                 self.state.automation_running = False
                 return False
 
-    def _handle_health_monitoring(self) -> bool:
-        """Handle normal health monitoring and potion usage.
+    def _handle_health_and_mana_monitoring(self) -> bool:
+        """Handle normal health and mana monitoring with potion usage.
 
         Returns:
             True if special handling occurred, False for normal loop
         """
         try:
-            # Take screenshot and analyze health
+            # Take screenshot and analyze both health and mana
             screenshot = self.screenshot_manager.take_screenshot()
             screenshot_cv = self.screenshot_manager.screenshot_to_cv2(screenshot)
 
@@ -365,16 +417,15 @@ class GameAutomation:
             if self.debug_mode:
                 self.screenshot_manager.save_debug_screenshot(screenshot, DEBUG_SCREENSHOT_NAME)
 
-            # Normal health monitoring - get health percentage and use potions if needed
+            # Get health and mana percentages
             health_percent = self.health_detector.get_health_percentage(screenshot_cv)
-            potion_result = self.potion_manager.use_health_potion(
-                health_percent
-            )
+            mana_percent = self.mana_detector.get_mana_percentage(screenshot_cv)
+
+            # Use both potions as needed
+            potion_results = self.potion_manager.use_both_potions(health_percent, mana_percent)
 
             # Handle recovery from previous emergency/death states
-            if (
-                self.state.empty_health_detected
-            ) and health_percent > 0.1:
+            if (self.state.empty_health_detected) and health_percent > 0.1:
                 print(
                     f"🎉 Character has recovered! Health: {health_percent:.1%} - returning to normal monitoring"
                 )
@@ -382,15 +433,19 @@ class GameAutomation:
                 return False  # Exit to restart normal monitoring
 
             if self.debug_mode:
-                if potion_result:
+                health_result = potion_results.get("health", False)
+                mana_result = potion_results.get("mana", False)
+                if health_result:
                     logger.debug("Health potion was used")
-                else:
-                    logger.debug("No health potion needed")
+                if mana_result:
+                    logger.debug("Mana potion was used")
+                if not health_result and not mana_result:
+                    logger.debug("No potions needed")
 
             return False
 
         except Exception as e:
-            logger.error(f"Error in health monitoring: {e}")
+            logger.error(f"Error in health and mana monitoring: {e}")
             return False
 
     def _handle_empty_health_detection(self, screenshot_cv: np.ndarray) -> bool:
@@ -448,7 +503,6 @@ class GameAutomation:
         time.sleep(1.0)
         return True
 
-
     def _handle_health_recovery(self) -> None:
         """Handle recovery from empty health state."""
         print(SUCCESS_MESSAGES["health_restored"])
@@ -486,13 +540,43 @@ class GameAutomation:
         if self.debug_mode:
             logger.debug(f"Templates loaded: {template_info['health_templates_loaded']}")
 
-    def use_skill(self, skill_index: int = 0) -> None:
-        """Use a skill by index.
+    def use_skill(self, skill_id: int) -> bool:
+        """Use a specific skill by ID.
 
         Args:
-            skill_index: Index of skill to use (0-based)
+            skill_id: ID of skill to use
+
+        Returns:
+            True if skill was used successfully, False otherwise
         """
-        self.input_controller.press_skill(skill_index)
+        try:
+            result = self.skill_manager.use_skill(skill_id)
+            if result:
+                self.state.last_skill_usage_time = time.time()
+                self.state.skills_used_count += 1
+            return result
+        except Exception as e:
+            logger.error(f"Error using skill {skill_id}: {e}")
+            return False
+
+    def get_skill_status(self, skill_id: int) -> dict[str, Any]:
+        """Get status of a specific skill.
+
+        Args:
+            skill_id: ID of skill to check
+
+        Returns:
+            Dictionary containing skill status information
+        """
+        return self.skill_manager.get_skill_status(skill_id)
+
+    def get_all_skills_status(self) -> dict[int, dict[str, Any]]:
+        """Get status of all skills.
+
+        Returns:
+            Dictionary mapping skill IDs to their status information
+        """
+        return self.skill_manager.get_all_skills_status()
 
     def set_health_threshold(self, threshold: float) -> None:
         """Set health threshold for potion usage.
@@ -501,6 +585,28 @@ class GameAutomation:
             threshold: Health threshold (0.0 to 1.0)
         """
         self.potion_manager.set_health_threshold(threshold)
+
+    def set_mana_threshold(self, threshold: float) -> None:
+        """Set mana threshold for potion usage.
+
+        Args:
+            threshold: Mana threshold (0.0 to 1.0)
+        """
+        self.potion_manager.set_mana_threshold(threshold)
+
+    def get_mana_status(self) -> dict[str, Any]:
+        """Get current mana status.
+
+        Returns:
+            Dictionary containing mana information
+        """
+        try:
+            screenshot = self.screenshot_manager.take_screenshot()
+            screenshot_cv = self.screenshot_manager.screenshot_to_cv2(screenshot)
+            return self.mana_detector.get_mana_bar_info(screenshot_cv)
+        except Exception as e:
+            logger.error(f"Error getting mana status: {e}")
+            return {"error": str(e)}
 
     def get_automation_info(self) -> dict[str, Any]:
         """Get information about the automation system.
@@ -516,6 +622,10 @@ class GameAutomation:
                 "is_dead": self.state.is_dead,
                 "empty_health_detected": self.state.empty_health_detected,
                 "loop_count": self.state.loop_count,
+                "last_skill_usage_time": self.state.last_skill_usage_time,
+                "skills_used_count": self.state.skills_used_count,
             },
+            "skills_status": self.get_all_skills_status(),
+            "potion_thresholds": self.potion_manager.get_thresholds(),
             "debug_mode": self.debug_mode,
         }

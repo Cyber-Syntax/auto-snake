@@ -14,14 +14,28 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class SkillConfig:
-    """Configuration for a skill."""
+    """Configuration for a skill.
+    
+    cooldown > duration
+    
+    
+    Attributes:
+        id (int): Unique identifier for the skill.
+        cooldown (int): Seconds before skill is ready to be used again.
+        #TODO: duration is not even needed if we are not going to Check
+        #because cooldown and usage_time is determine when to skill going to be use
+        duration (int): Skill active time in seconds.
+        usage_time (int): Skill used time in seconds. (e.g 1 to 4 second)
+        key (str): Skill keyboard key.
+        sleep_time (int): Seconds before next skill usage.
+    """
 
     id: int
     cooldown: int
     duration: int
     usage_time: int
     key: str
-    sleep_time: int = 2  # seconds before next skill usage
+    sleep_time: int = 2
 
 
 class Skill:

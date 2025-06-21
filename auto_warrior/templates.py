@@ -16,6 +16,7 @@ from auto_warrior.constants import (
     DEFAULT_IMAGES_PATH,
     EMPTY_HEALTH_TEMPLATE,
     HEALTH_TEMPLATE_FILES,
+    MANA_TEMPLATE_FILES,
     RESPAWN_BUTTON_TEMPLATE,
 )
 from auto_warrior.exceptions import TemplateLoadError
@@ -34,23 +35,30 @@ class TemplateManager:
             debug_mode: Whether to enable debug logging
         """
         self.debug_mode = debug_mode
-        self.images_path = Path(images_path) if images_path else DEFAULT_IMAGES_PATH
+        self.images_path = self._validate_images_path(images_path)
 
         # Template storage
         self.health_templates: dict[str, np.ndarray] = {}
+        self.mana_templates: dict[str, np.ndarray] = {}
         self.empty_health_template: np.ndarray | None = None
         self.respawn_button_template: np.ndarray | None = None
 
         if self.debug_mode:
             logger.debug(f"TemplateManager initialized with path: {self.images_path}")
 
+    def _validate_images_path(self, images_path: Path | str | None) -> Path:
+        """Validate and return the images path."""
+        return Path(images_path) if images_path else DEFAULT_IMAGES_PATH
+
     def load_all_templates(self) -> None:
         """Load all required templates for automation."""
         self.load_health_templates()
+        self.load_mana_templates()
         self.load_respawn_templates()
 
         if self.debug_mode:
-            logger.debug(f"Total templates loaded: {len(self.health_templates)}")
+            logger.debug(f"Total health templates loaded: {len(self.health_templates)}")
+            logger.debug(f"Total mana templates loaded: {len(self.mana_templates)}")
 
         if not self.health_templates:
             raise TemplateLoadError(
@@ -87,6 +95,38 @@ class TemplateManager:
 
             except Exception as e:
                 logger.error(f"Failed to load template {filename}: {e}")
+                continue
+
+    def load_mana_templates(self) -> None:
+        """Load mana bar template images."""
+        if self.debug_mode:
+            logger.debug(f"Loading mana templates from: {self.images_path}")
+            logger.debug(f"Looking for templates: {list(MANA_TEMPLATE_FILES.values())}")
+
+        for percentage, filename in MANA_TEMPLATE_FILES.items():
+            filepath = self.images_path / filename
+
+            if self.debug_mode:
+                logger.debug(f"Checking mana file: {filepath}")
+
+            try:
+                template = self._load_template_image(filepath)
+                if template is not None:
+                    self.mana_templates[percentage] = template
+
+                    if self.debug_mode:
+                        logger.debug(
+                            f"SUCCESS: Loaded mana template: {percentage}% - {filename} "
+                            f"(shape: {template.shape})"
+                        )
+
+                    # Verify PIL compatibility
+                    self._verify_pil_compatibility(filepath, filename)
+                else:
+                    self._handle_template_load_failure(filepath, filename, percentage)
+
+            except Exception as e:
+                logger.error(f"Failed to load mana template {filename}: {e}")
                 continue
 
     def load_respawn_templates(self) -> None:
@@ -226,12 +266,28 @@ class TemplateManager:
         return self.health_templates.get(percentage)
 
     def get_all_health_templates(self) -> dict[str, np.ndarray]:
-        """Get all loaded health templates.
+        """Get all health templates.
 
         Returns:
             Dictionary mapping percentage strings to template arrays
         """
         return self.health_templates.copy()
+
+    def get_all_mana_templates(self) -> dict[str, np.ndarray]:
+        """Get all mana templates.
+
+        Returns:
+            Dictionary mapping percentage strings to template arrays
+        """
+        return self.mana_templates.copy()
+
+    def has_mana_templates(self) -> bool:
+        """Check if mana templates are loaded.
+
+        Returns:
+            True if mana templates are available, False otherwise
+        """
+        return len(self.mana_templates) > 0
 
     def get_empty_health_template(self) -> np.ndarray | None:
         """Get the empty health template.
@@ -266,6 +322,8 @@ class TemplateManager:
         return {
             "health_templates_count": len(self.health_templates),
             "health_templates_loaded": list(self.health_templates.keys()),
+            "mana_templates_count": len(self.mana_templates),
+            "mana_templates_loaded": list(self.mana_templates.keys()),
             "empty_health_loaded": self.empty_health_template is not None,
             "respawn_button_loaded": self.respawn_button_template is not None,
             "images_path": str(self.images_path),

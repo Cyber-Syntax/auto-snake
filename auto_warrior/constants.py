@@ -23,6 +23,17 @@ HEALTH_TEMPLATE_FILES = {
     "full": "full_health_bar.png",
 }
 EMPTY_HEALTH_TEMPLATE = "empty_health_bar.png"
+
+# Mana template files
+MANA_TEMPLATE_FILES = {
+    "20": "20_mana_bar.png",
+    "40": "40_mana_bar.png",
+    "50": "50_mana_bar.png",
+    "70": "70_mana_bar.png",
+    "90": "90_mana_bar.png",
+    "full": "full_mana_bar.png",
+}
+
 RESPAWN_BUTTON_TEMPLATE = "respawn_button.png"
 
 # TODO: Delete unnecessary imports
@@ -38,7 +49,10 @@ EMPTY_HEALTH_THRESHOLD = 0.01  # Consider health empty below 1%
 
 # Template matching confidence thresholds
 MIN_TEMPLATE_CONFIDENCE = 0.3  # Minimum confidence for template matching
-EMPTY_HEALTH_CONFIDENCE = 0.85  # Confidence threshold for empty health detection (higher to reduce false positives)
+EMPTY_HEALTH_CONFIDENCE = (
+    0.85  # Confidence threshold for empty health detection (higher to reduce false positives)
+)
+MANA_TEMPLATE_CONFIDENCE = 0.8  # High confidence threshold for robust mana detection
 RESPAWN_BUTTON_CONFIDENCE = 0.8  # Confidence threshold for respawn button detection
 
 # Timing constants (in seconds)
@@ -48,7 +62,6 @@ POTION_EFFECT_WAIT = 1.5  # Wait time for potion effect
 MULTIPLE_POTION_DELAY = 0.3  # Delay between multiple potion presses
 POST_RESPAWN_POTION_DELAY = 0.5  # Longer delay for post-respawn healing
 POST_RESPAWN_WAIT = 2.0  # Wait time after post-respawn healing
-
 
 
 # Respawn system timing
