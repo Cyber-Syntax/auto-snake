@@ -52,6 +52,7 @@ class AutomationState:
 
     # Respawn system
     is_dead: bool = False
+    death_time: float | None = None
     respawn_wait_start: float | None = None
     post_respawn_heal_time: float | None = None
     respawn_attempt_count: int = 0
@@ -417,9 +418,30 @@ class GameAutomation:
             if self.debug_mode:
                 self.screenshot_manager.save_debug_screenshot(screenshot, DEBUG_SCREENSHOT_NAME)
 
+            # Check for empty health first (critical check)
+            is_empty = self.health_detector.is_health_empty(screenshot_cv)
+            if self.debug_mode:
+                logger.debug(f"Empty health check result: {is_empty}")
+
+            if is_empty:
+                if self.debug_mode:
+                    logger.debug("Empty health detected - triggering emergency handler")
+                return self._handle_empty_health_detection(screenshot_cv)
+
+            # Skip potion usage if character is confirmed dead
+            if self.state.is_dead:
+                if self.debug_mode:
+                    logger.debug("Character is dead - skipping health/mana monitoring")
+                return True  # Continue to respawn handling
+
             # Get health and mana percentages
             health_percent = self.health_detector.get_health_percentage(screenshot_cv)
+            if self.debug_mode:
+                logger.debug(f"Health percentage: {health_percent:.2%}")
+
             mana_percent = self.mana_detector.get_mana_percentage(screenshot_cv)
+            if self.debug_mode:
+                logger.debug(f"Mana percentage: {mana_percent:.2%}")
 
             # Use both potions as needed
             potion_results = self.potion_manager.use_both_potions(health_percent, mana_percent)
@@ -449,7 +471,7 @@ class GameAutomation:
             return False
 
     def _handle_empty_health_detection(self, screenshot_cv: np.ndarray) -> bool:
-        """Handle empty health detection .
+        """Handle empty health detection and trigger death confirmation.
 
         Args:
             screenshot_cv: OpenCV screenshot array
@@ -457,10 +479,31 @@ class GameAutomation:
         Returns:
             True to continue special handling
         """
+        if self.debug_mode:
+            logger.debug(f"_handle_empty_health_detection called, is_dead={self.state.is_dead}")
+
         if not self.state.is_dead:
             print("⚠️  " + ERROR_MESSAGES["empty_health_detected"])
-
             self.state.empty_health_detected = True
+
+            if self.debug_mode:
+                logger.debug("Confirming character death...")
+
+            # Confirm character death and start respawn process
+            death_confirmed = self._confirm_character_death(screenshot_cv)
+            if death_confirmed:
+                print("💀 Character death confirmed - starting respawn process...")
+                return True
+            else:
+                # False alarm - reset empty health detection
+                self.state.empty_health_detected = False
+                print("ℹ️  False alarm - character still alive")
+                if self.debug_mode:
+                    logger.debug("Death confirmation failed - continuing normal monitoring")
+                return False
+        else:
+            if self.debug_mode:
+                logger.debug("Character already dead - continuing death handling")
 
         return True
 
@@ -471,34 +514,38 @@ class GameAutomation:
             screenshot_cv: OpenCV screenshot array
 
         Returns:
-            True to continue death handling
+            True if death confirmed, False if character still alive
         """
-        if not self.state.is_dead:
-            print("💀 " + SUCCESS_MESSAGES["death_confirmed"])
-            self.state.is_dead = True
+        # If already dead, no need to confirm again
+        if self.state.is_dead:
+            return True
 
-            current_time = time.time()
+        print("💀 " + SUCCESS_MESSAGES["death_confirmed"])
+        self.state.is_dead = True
+        self.state.death_time = time.time()
 
-            # Always wait the full respawn duration - this is required for game stability
-            self.state.respawn_wait_start = current_time
+        current_time = time.time()
 
-            if self.debug_mode:
-                logger.debug(f"DEBUG: respawn_wait_start set to {current_time}")
-                logger.debug(f"DEBUG: RESPAWN_WAIT_DURATION = {RESPAWN_WAIT_DURATION}")
+        # Always wait the full respawn duration - this is required for game stability
+        self.state.respawn_wait_start = current_time
 
-            # Check for respawn button availability for informational purposes
-            button_found, _ = self.respawn_detector.detect_respawn_button(screenshot_cv)
+        if self.debug_mode:
+            logger.debug(f"DEBUG: respawn_wait_start set to {current_time}")
+            logger.debug(f"DEBUG: RESPAWN_WAIT_DURATION = {RESPAWN_WAIT_DURATION}")
 
-            if button_found:
-                print(
-                    f"🔄 Respawn button detected! Waiting {RESPAWN_WAIT_DURATION}s before clicking..."
-                )
-                print("   This delay ensures the game is ready for respawn interaction.")
-            else:
-                print(
-                    f"⏳ Starting respawn wait timer ({RESPAWN_WAIT_DURATION}s) - button will be checked later"
-                )
-                print("   Games need time to process death state before respawn is available.")
+        # Check for respawn button availability for informational purposes
+        button_found, _ = self.respawn_detector.detect_respawn_button(screenshot_cv)
+
+        if button_found:
+            print(
+                f"🔄 Respawn button detected! Waiting {RESPAWN_WAIT_DURATION}s before clicking..."
+            )
+            print("   This delay ensures the game is ready for respawn interaction.")
+        else:
+            print(
+                f"⏳ Starting respawn wait timer ({RESPAWN_WAIT_DURATION}s) - button will be checked later"
+            )
+            print("   Games need time to process death state before respawn is available.")
 
         time.sleep(1.0)
         return True

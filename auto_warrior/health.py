@@ -64,24 +64,35 @@ class HealthDetector:
         empty_template = self.template_manager.get_empty_health_template()
 
         if empty_template is None:
+            if self.debug_mode:
+                logger.debug("No empty health template available, using percentage fallback")
             # Fallback to percentage-based detection
             health_percent = self.get_health_percentage(screenshot_cv)
             is_empty = health_percent <= 0.01  # Less than 1%
 
-            if self.debug_mode and is_empty:
-                logger.debug(f"Health extremely low ({health_percent:.2%}), treating as empty")
+            if self.debug_mode:
+                logger.debug(
+                    f"Percentage-based empty health check: {health_percent:.2%} -> {'EMPTY' if is_empty else 'NOT EMPTY'}"
+                )
 
             return is_empty
 
         # Use template matching for empty health detection
         try:
+            if self.debug_mode:
+                logger.debug(
+                    f"Using empty health template matching (threshold: {EMPTY_HEALTH_CONFIDENCE})"
+                )
+
             result = cv2.matchTemplate(screenshot_cv, empty_template, cv2.TM_SQDIFF_NORMED)
             min_val, _, min_loc, _ = cv2.minMaxLoc(result)
 
             is_empty = min_val < EMPTY_HEALTH_CONFIDENCE
 
-            if self.debug_mode and is_empty:
-                logger.debug(f"Empty health bar detected with difference: {min_val:.3f}")
+            if self.debug_mode:
+                logger.debug(
+                    f"Template empty health check: difference={min_val:.3f}, threshold={EMPTY_HEALTH_CONFIDENCE}, result={'EMPTY' if is_empty else 'NOT EMPTY'}"
+                )
 
             return is_empty
 
@@ -121,8 +132,10 @@ class HealthDetector:
                 best_match = percentage
 
         if self.debug_mode:
-            logger.debug(f"All match scores: {all_scores}")
-            logger.debug(f"Best match: {best_match} with score {best_score:.4f}")
+            logger.debug(f"All match differences: {all_scores}")
+            logger.debug(
+                f"Best match: {best_match} with difference {best_score:.4f} (threshold: {MIN_TEMPLATE_CONFIDENCE})"
+            )
 
         # Convert to percentage
         return self._convert_match_to_percentage(best_match, best_score)

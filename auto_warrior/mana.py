@@ -125,7 +125,10 @@ class ManaDetector:
 
                 if min_val < best_difference and min_val < MANA_TEMPLATE_CONFIDENCE:
                     best_difference = min_val
-                    best_match_percentage = int(percentage_str) / 100.0
+                    if percentage_str == "full":
+                        best_match_percentage = 1.0
+                    else:
+                        best_match_percentage = int(percentage_str) / 100.0
 
             except Exception as e:
                 logger.warning(f"Error matching mana template {percentage_str}: {e}")
@@ -180,7 +183,10 @@ class ManaDetector:
 
                 if min_val < best_difference and min_val < MIN_TEMPLATE_CONFIDENCE:
                     best_difference = min_val
-                    best_match_percentage = int(percentage_str) / 100.0
+                    if percentage_str == "full":
+                        best_match_percentage = 1.0
+                    else:
+                        best_match_percentage = int(percentage_str) / 100.0
 
             except Exception as e:
                 logger.warning(f"Error matching basic mana template {percentage_str}: {e}")
