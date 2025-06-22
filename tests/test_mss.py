@@ -17,6 +17,10 @@ TEMPLATE_CONFIG = [
         {"name": f"{pct}% Health", "file": f"{pct}_health_bar.png", "th": 0.1}
         for pct in ["20", "40", "50", "70", "90", "full"]
     ],
+    *[
+        {"name": f"{pct}% Mana", "file": f"{pct}_mana_bar.png", "th": 0.1}
+        for pct in ["20", "40", "50", "70", "90", "full"]
+    ],
     {"name": "Empty Health", "file": "empty_health_bar.png", "th": 0.1},
     {"name": "Left Empty Health", "file": "left_empty_health_bar.png", "th": 0.1},
     {"name": "Respawn Button", "file": "respawn_button.png", "th": 0.1},
