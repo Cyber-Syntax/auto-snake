@@ -43,7 +43,7 @@ def test_template_match(screenshot, template, template_name, threshold):
     template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
     
     # Perform template matching
-    result = cv2.matchTemplate(screenshot_gray, template_gray, cv2.TM_CCOEFF_NORMED)
+    result = cv2.matchTemplate(screenshot_gray, template_gray, cv2.TM_SQDIFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
     
     # Check if above threshold

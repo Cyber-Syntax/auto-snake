@@ -111,39 +111,39 @@ class ManaDetector:
             raise TemplateMatchError("mana_percentage", "No mana templates available")
 
         best_match_percentage = 0.0
-        best_confidence = 0.0
+        best_difference = float("inf")  # Start with worst possible difference for SQDIFF
 
         for percentage_str, template in mana_templates.items():
             try:
-                result = cv2.matchTemplate(screenshot_cv, template, cv2.TM_CCOEFF_NORMED)
-                _, max_val, _, max_loc = cv2.minMaxLoc(result)
+                result = cv2.matchTemplate(screenshot_cv, template, cv2.TM_SQDIFF_NORMED)
+                min_val, _, min_loc, _ = cv2.minMaxLoc(result)
 
                 if self.debug_mode:
                     logger.debug(
-                        f"Mana template {percentage_str}%: confidence={max_val:.3f} at {max_loc}"
+                        f"Mana template {percentage_str}%: difference={min_val:.3f} at {min_loc}"
                     )
 
-                if max_val > best_confidence and max_val > MANA_TEMPLATE_CONFIDENCE:
-                    best_confidence = max_val
+                if min_val < best_difference and min_val < MANA_TEMPLATE_CONFIDENCE:
+                    best_difference = min_val
                     best_match_percentage = int(percentage_str) / 100.0
 
             except Exception as e:
                 logger.warning(f"Error matching mana template {percentage_str}: {e}")
                 continue
 
-        if best_confidence == 0.0:
+        if best_difference == float("inf"):
             if self.debug_mode:
                 logger.debug(
-                    f"No mana templates matched with confidence >= {MANA_TEMPLATE_CONFIDENCE}"
+                    f"No mana templates matched with difference <= {MANA_TEMPLATE_CONFIDENCE}"
                 )
             raise TemplateMatchError(
                 "mana_percentage",
-                f"No templates matched with confidence >= {MANA_TEMPLATE_CONFIDENCE}",
+                f"No templates matched with difference <= {MANA_TEMPLATE_CONFIDENCE}",
             )
 
         if self.debug_mode:
             logger.debug(
-                f"Robust mana match: {best_match_percentage:.1%} with confidence {best_confidence:.3f}"
+                f"Robust mana match: {best_match_percentage:.1%} with difference {best_difference:.3f}"
             )
 
         return best_match_percentage
@@ -166,39 +166,39 @@ class ManaDetector:
             raise TemplateMatchError("mana_percentage", "No mana templates available")
 
         best_match_percentage = 0.0
-        best_confidence = 0.0
+        best_difference = float("inf")  # Start with worst possible difference for SQDIFF
 
         for percentage_str, template in mana_templates.items():
             try:
-                result = cv2.matchTemplate(screenshot_cv, template, cv2.TM_CCOEFF_NORMED)
-                _, max_val, _, max_loc = cv2.minMaxLoc(result)
+                result = cv2.matchTemplate(screenshot_cv, template, cv2.TM_SQDIFF_NORMED)
+                min_val, _, min_loc, _ = cv2.minMaxLoc(result)
 
                 if self.debug_mode:
                     logger.debug(
-                        f"Basic mana template {percentage_str}%: confidence={max_val:.3f} at {max_loc}"
+                        f"Basic mana template {percentage_str}%: difference={min_val:.3f} at {min_loc}"
                     )
 
-                if max_val > best_confidence and max_val > MIN_TEMPLATE_CONFIDENCE:
-                    best_confidence = max_val
+                if min_val < best_difference and min_val < MIN_TEMPLATE_CONFIDENCE:
+                    best_difference = min_val
                     best_match_percentage = int(percentage_str) / 100.0
 
             except Exception as e:
                 logger.warning(f"Error matching basic mana template {percentage_str}: {e}")
                 continue
 
-        if best_confidence == 0.0:
+        if best_difference == float("inf"):
             if self.debug_mode:
                 logger.debug(
-                    f"No mana templates matched with basic confidence >= {MIN_TEMPLATE_CONFIDENCE}"
+                    f"No mana templates matched with basic difference <= {MIN_TEMPLATE_CONFIDENCE}"
                 )
             raise TemplateMatchError(
                 "mana_percentage",
-                f"No templates matched with confidence >= {MIN_TEMPLATE_CONFIDENCE}",
+                f"No templates matched with difference <= {MIN_TEMPLATE_CONFIDENCE}",
             )
 
         if self.debug_mode:
             logger.debug(
-                f"Basic mana match: {best_match_percentage:.1%} with confidence {best_confidence:.3f}"
+                f"Basic mana match: {best_match_percentage:.1%} with difference {best_difference:.3f}"
             )
 
         return best_match_percentage

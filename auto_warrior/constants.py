@@ -47,13 +47,13 @@ MEDIUM_HEALTH_THRESHOLD = 0.70  # Medium health level (70%)
 HIGH_HEALTH_THRESHOLD = 0.90  # High health level (90%)
 EMPTY_HEALTH_THRESHOLD = 0.01  # Consider health empty below 1%
 
-# Template matching confidence thresholds
-MIN_TEMPLATE_CONFIDENCE = 0.3  # Minimum confidence for template matching
+# Template matching confidence thresholds (for TM_SQDIFF_NORMED: lower values = better match)
+MIN_TEMPLATE_CONFIDENCE = 0.2  # Maximum difference for template matching (lower = stricter)
 EMPTY_HEALTH_CONFIDENCE = (
-    0.85  # Confidence threshold for empty health detection (higher to reduce false positives)
+    0.1  # Maximum difference for empty health detection (lower to reduce false positives)
 )
-MANA_TEMPLATE_CONFIDENCE = 0.8  # High confidence threshold for robust mana detection
-RESPAWN_BUTTON_CONFIDENCE = 0.8  # Confidence threshold for respawn button detection
+MANA_TEMPLATE_CONFIDENCE = 0.1  # Low difference threshold for robust mana detection
+RESPAWN_BUTTON_CONFIDENCE = 0.1  # Maximum difference threshold for respawn button detection
 
 # Timing constants (in seconds)
 KEY_PRESS_DURATION = 0.1  # Duration to hold key press
@@ -111,7 +111,7 @@ PYAUTOGUI_PAUSE = 0.1  # Default pause between PyAutoGUI operations
 TEMPLATE_MATCH_METHODS = {
     "CCOEFF_NORMED": "cv2.TM_CCOEFF_NORMED",
     "CCORR_NORMED": "cv2.TM_CCORR_NORMED",
-    "SQDIFF_NORMED": "cv2.TM_SQDIFF_NORMED",
+    "SQDIFF_NORMED": "cv2.TM_SQDIFF_NORMED",  # best one
 }
 
 # Debug settings

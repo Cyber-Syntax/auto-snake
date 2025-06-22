@@ -1,4 +1,5 @@
 import logging
+
 import cv2
 import numpy as np
 
@@ -10,6 +11,7 @@ from auto_warrior.input_control import ClickController
 from auto_warrior.templates import TemplateManager
 
 logger = logging.getLogger(__name__)
+
 
 class RespawnDetector:
     """Handles respawn button detection and clicking."""
@@ -47,18 +49,18 @@ class RespawnDetector:
             return False, None
 
         try:
-            result = cv2.matchTemplate(screenshot_cv, respawn_template, cv2.TM_CCOEFF_NORMED)
-            _, max_val, _, max_loc = cv2.minMaxLoc(result)
+            result = cv2.matchTemplate(screenshot_cv, respawn_template, cv2.TM_SQDIFF_NORMED)
+            min_val, _, min_loc, _ = cv2.minMaxLoc(result)
 
-            if max_val > RESPAWN_BUTTON_CONFIDENCE:
+            if min_val < RESPAWN_BUTTON_CONFIDENCE:
                 # Calculate center of the button
                 h, w = respawn_template.shape[:2]
-                center_x = max_loc[0] + w // 2
-                center_y = max_loc[1] + h // 2
+                center_x = min_loc[0] + w // 2
+                center_y = min_loc[1] + h // 2
 
                 if self.debug_mode:
                     logger.debug(
-                        f"Respawn button detected with confidence: {max_val:.3f} "
+                        f"Respawn button detected with difference: {min_val:.3f} "
                         f"at ({center_x}, {center_y})"
                     )
 

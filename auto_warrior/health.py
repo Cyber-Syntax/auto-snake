@@ -1,4 +1,5 @@
 import logging
+
 import cv2
 import numpy as np
 
@@ -10,6 +11,7 @@ from auto_warrior.exceptions import TemplateMatchError
 from auto_warrior.templates import TemplateManager
 
 logger = logging.getLogger(__name__)
+
 
 class HealthDetector:
     """Handles health bar detection and analysis."""
@@ -73,13 +75,13 @@ class HealthDetector:
 
         # Use template matching for empty health detection
         try:
-            result = cv2.matchTemplate(screenshot_cv, empty_template, cv2.TM_CCOEFF_NORMED)
-            _, max_val, _, _ = cv2.minMaxLoc(result)
+            result = cv2.matchTemplate(screenshot_cv, empty_template, cv2.TM_SQDIFF_NORMED)
+            min_val, _, min_loc, _ = cv2.minMaxLoc(result)
 
-            is_empty = max_val > EMPTY_HEALTH_CONFIDENCE
+            is_empty = min_val < EMPTY_HEALTH_CONFIDENCE
 
             if self.debug_mode and is_empty:
-                logger.debug(f"Empty health bar detected with confidence: {max_val:.3f}")
+                logger.debug(f"Empty health bar detected with difference: {min_val:.3f}")
 
             return is_empty
 
@@ -104,7 +106,7 @@ class HealthDetector:
         screen_gray = self._prepare_image_for_matching(screen_image)
 
         best_match = None
-        best_score = 0.0
+        best_score = float("inf")  # Start with worst possible score for SQDIFF
         all_scores = {}
 
         # Test all health templates
@@ -114,7 +116,7 @@ class HealthDetector:
             score = self._match_single_template(screen_gray, template, percentage)
             all_scores[percentage] = score
 
-            if score > best_score and score > MIN_TEMPLATE_CONFIDENCE:
+            if score < best_score and score < MIN_TEMPLATE_CONFIDENCE:
                 best_score = score
                 best_match = percentage
 
@@ -159,13 +161,15 @@ class HealthDetector:
         """
         try:
             template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-            result = cv2.matchTemplate(screen_gray, template_gray, cv2.TM_CCOEFF_NORMED)
-            _, max_val, _, max_loc = cv2.minMaxLoc(result)
+            result = cv2.matchTemplate(screen_gray, template_gray, cv2.TM_SQDIFF_NORMED)
+            min_val, _, min_loc, _ = cv2.minMaxLoc(result)
 
             if self.debug_mode:
-                logger.debug(f"Template {percentage}% score: {max_val:.4f} at location {max_loc}")
+                logger.debug(
+                    f"Template {percentage}% difference: {min_val:.4f} at location {min_loc}"
+                )
 
-            return max_val
+            return min_val
 
         except Exception as e:
             if self.debug_mode:
@@ -182,10 +186,10 @@ class HealthDetector:
         Returns:
             Health percentage as float
         """
-        if best_score < MIN_TEMPLATE_CONFIDENCE:
+        if best_score >= MIN_TEMPLATE_CONFIDENCE:
             if self.debug_mode:
                 logger.warning(
-                    f"Best match score {best_score:.4f} below threshold "
+                    f"Best match difference {best_score:.4f} above threshold "
                     f"{MIN_TEMPLATE_CONFIDENCE}, defaulting to full health"
                 )
             return 1.0
