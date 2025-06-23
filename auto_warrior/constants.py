@@ -44,7 +44,7 @@ DEFAULT_HEALTH_THRESHOLD = 0.9  # Use health potion when below 90%
 CRITICAL_HEALTH_THRESHOLD = 0.20  # Critical health level (20%)
 LOW_HEALTH_THRESHOLD = 0.40  # Low health level (40%)
 MEDIUM_HEALTH_THRESHOLD = 0.70  # Medium health level (70%)
-HIGH_HEALTH_THRESHOLD = 0.90  # High health level (90%)
+HIGH_HEALTH_THRESHOLD = 0.9  # High health level (90%)
 EMPTY_HEALTH_THRESHOLD = 0.01  # Consider health empty below 1%
 
 # Template matching confidence thresholds (for TM_SQDIFF_NORMED: lower values = better match)

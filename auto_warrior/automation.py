@@ -10,9 +10,11 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-
+from multiprocessing import Queue, Event, Manager, Process
+import multiprocessing
 import numpy as np
 import pyautogui
+import queue
 
 from auto_warrior.constants import (
     AUTOMATION_LOOP_DELAY,
@@ -30,7 +32,11 @@ from auto_warrior.constants import (
 )
 from auto_warrior.exceptions import AutoSnakeError
 from auto_warrior.health import HealthDetector
-from auto_warrior.input_control import AutomationController, ClickController, InputController
+from auto_warrior.input_control import (
+    AutomationController,
+    ClickController,
+    InputController,
+)
 from auto_warrior.mana import ManaDetector
 from auto_warrior.potion import PotionManager
 from auto_warrior.respawn import RespawnDetector
@@ -87,19 +93,81 @@ class GameAutomation:
         """
         self.debug_mode = debug_mode
         self.state = AutomationState()
+        self.automation_process = None  # FIX: Initialize to None
+        self.command_queue = multiprocessing.Queue()
+        self.status_queue = multiprocessing.Queue()
+        self.stop_event = multiprocessing.Event()
+        
+        self._health_queue = multiprocessing.Queue(maxsize=1)
+        self._health_results = multiprocessing.Manager().dict({'is_empty': False, 'hp': 1.0})
+        self._health_stop = multiprocessing.Event()
+
+        self._health_proc = multiprocessing.Process(
+            target=self.health_worker,
+            args=(
+                self._health_queue,
+                self._health_results,
+                self._health_stop,
+                str(images_path),
+                debug_mode,
+            ),
+            daemon=True,
+        )
+        self._health_proc.start()
 
         # Configure PyAutoGUI
         pyautogui.FAILSAFE = PYAUTOGUI_FAILSAFE
         pyautogui.PAUSE = PYAUTOGUI_PAUSE
 
+        # Store initialization parameters
+        self.init_params = {
+            "debug_mode": debug_mode,
+            "images_path": images_path,
+            "health_threshold": health_threshold,
+            "mana_threshold": mana_threshold,
+        }
+
         # Initialize components
-        self._initialize_components(images_path, health_threshold, mana_threshold)
+        # self._initialize_components(images_path, health_threshold, mana_threshold)
 
         if self.debug_mode:
             logger.debug("GameAutomation initialized successfully")
 
+    @staticmethod
+    def health_worker(frame_queue: Queue, result_dict: dict, stop_event: Event,
+                        template_path: str, debug: bool):
+        """
+        Pulls frames from frame_queue, runs HealthDetector on them,
+        and writes {'is_empty': bool, 'hp': float} into result_dict.
+        Exits when it sees stop_event.set() or a None frame.
+        """
+        tm = TemplateManager(template_path, debug)
+        detector = HealthDetector(tm, debug)
+    
+        while not stop_event.is_set():
+            try:
+                frame = frame_queue.get(timeout=0.1)
+            except queue.Empty:
+                continue
+    
+            if frame is None:
+                break
+    
+            # Priority detection: empty check first
+            empty = detector.is_health_empty(frame)
+            hp    = detector.get_health_percentage(frame) if not empty else 0.0
+    
+            result_dict['is_empty'] = empty
+            result_dict['hp']       = hp
+    
+            if debug:
+                logger.debug(f"[HealthWorker] empty={empty}, hp={hp:.2%}")
+    
     def _initialize_components(
-        self, images_path: Path | str | None, health_threshold: float, mana_threshold: float
+        self,
+        images_path: Path | str | None,
+        health_threshold: float,
+        mana_threshold: float,
     ) -> None:
         """Initialize all automation components.
 
@@ -134,32 +202,69 @@ class GameAutomation:
             raise AutoSnakeError("Template loading failed", str(e)) from e
 
     def run_automation(self) -> None:
-        """Main automation loop with respawn system."""
+        """Start the automation process."""
+        if self.automation_process and self.automation_process.is_alive():
+            print("Automation is already running")
+            return
+
+        self.stop_event.clear()
+        self.automation_process = multiprocessing.Process(
+            target=self._automation_worker,
+            args=(
+                self.command_queue,
+                self.status_queue,
+                self.stop_event,
+                self.init_params,
+            ),
+        )
+        self.automation_process.start()
         print(SUCCESS_MESSAGES["automation_started"])
+
+    def stop_automation(self) -> None:
+        """Stop the automation process gracefully."""
+        if self.automation_process and self.automation_process.is_alive():
+            self.stop_event.set()
+            self.automation_process.join(timeout=5.0)
+            if self.automation_process.is_alive():
+                self.automation_process.terminate()
+            print("Automation stopped")
+
+    def _automation_worker(
+        self,
+        command_queue: multiprocessing.Queue,
+        status_queue: multiprocessing.Queue,
+        stop_event: multiprocessing.Event,
+        init_params: dict,
+    ) -> None:
+        """Worker function running in separate process."""
+        # Initialize components within the process
+        self.state = AutomationState()
+        self._initialize_components(
+            init_params["images_path"],
+            init_params["health_threshold"],
+            init_params["mana_threshold"],
+        )
         self._print_automation_info()
 
-        # Set up automation control
+        try:
+            self._automation_loop(command_queue, stop_event)
+        except Exception as e:
+            logger.error(f"Automation worker failed: {e}")
+        finally:
+            logger.info("Automation worker exiting")
+
+    def _automation_loop(
+        self, command_queue: multiprocessing.Queue, stop_event: multiprocessing.Event
+    ) -> None:
+        """Main automation loop adapted for multiprocessing."""
         self.state.automation_running = True
         self.automation_controller.set_automation_running(True)
 
-        try:
-            self._automation_loop()
-        except KeyboardInterrupt:
-            print("Automation stopped by user")
-        except Exception as e:
-            logger.error(f"Automation loop failed: {e}")
-            raise AutoSnakeError("Automation failed", str(e)) from e
-        finally:
-            self.state.automation_running = False
+        while not stop_event.is_set() and self.state.automation_running:
+            # Process commands from queue
+            self._process_commands(command_queue)
 
-    def _automation_loop(self) -> None:
-        """Main automation loop implementation."""
-        while self.state.automation_running and self.automation_controller.is_automation_running():
             self.state.loop_count += 1
-
-            if self.debug_mode:
-                logger.debug(f"Automation loop #{self.state.loop_count}")
-
             current_time = time.time()
 
             # Handle different automation phases
@@ -176,8 +281,40 @@ class GameAutomation:
             # Handle skill usage
             self._handle_skill_usage()
 
-            # Standard loop delay
-            time.sleep(AUTOMATION_LOOP_DELAY)
+            # Standard loop delay with stop check
+            self._safe_sleep(AUTOMATION_LOOP_DELAY, stop_event)
+
+        self.state.automation_running = False
+
+    def _process_commands(self, command_queue: multiprocessing.Queue) -> None:
+        """Process commands from the main thread."""
+        try:
+            while not command_queue.empty():
+                command, *args = command_queue.get_nowait()
+                if command == "set_health_threshold":
+                    self.set_health_threshold(*args)
+                elif command == "set_mana_threshold":
+                    self.set_mana_threshold(*args)
+                elif command == "use_skill":
+                    self.use_skill(*args)
+                # Add other commands as needed
+        except Exception as e:
+            logger.error(f"Error processing commands: {e}")
+
+    def _safe_sleep(self, duration: float, stop_event: multiprocessing.Event) -> None:
+        """Sleep with periodic checks for stop signal."""
+        end_time = time.time() + duration
+        while time.time() < end_time and not stop_event.is_set():
+            time.sleep(0.1)  # Check every 100ms
+
+    def use_skill(self, skill_id: int) -> None:
+        """Thread-safe skill usage."""
+        try:
+            if self.skill_manager.use_skill(skill_id):
+                self.state.last_skill_usage_time = time.time()
+                self.state.skills_used_count += 1
+        except Exception as e:
+            logger.error(f"Error using skill: {e}")
 
     def _handle_skill_usage(self) -> None:
         """Handle automatic skill usage based on availability and cooldowns."""
@@ -205,7 +342,9 @@ class GameAutomation:
                     self.state.skills_used_count += 1
 
                     if self.debug_mode:
-                        logger.debug(f"Auto-used skill {skill.config.id} (key: {skill.config.key})")
+                        logger.debug(
+                            f"Auto-used skill {skill.config.id} (key: {skill.config.key})"
+                        )
 
                     # Only use one skill at a time to avoid conflicts
                     break
@@ -266,7 +405,9 @@ class GameAutomation:
 
         if elapsed_wait_time < RESPAWN_WAIT_DURATION:
             remaining_time = RESPAWN_WAIT_DURATION - elapsed_wait_time
-            print(f"⏳ Respawn wait: {remaining_time:.1f}s remaining (ensuring game stability)")
+            print(
+                f"⏳ Respawn wait: {remaining_time:.1f}s remaining (ensuring game stability)"
+            )
             time.sleep(1.0)
             return True
         else:
@@ -312,7 +453,9 @@ class GameAutomation:
                     f"🔍 DEBUG: Max attempts reached ({self.state.respawn_attempt_count} >= {RESPAWN_MAX_ATTEMPTS})"
                 )
                 print(RESPAWN_FAILURE_MESSAGE)
-                print("🛑 Automation stopped. Please check the game and restart when ready.")
+                print(
+                    "🛑 Automation stopped. Please check the game and restart when ready."
+                )
                 self.state.automation_running = False
                 return False
 
@@ -320,8 +463,12 @@ class GameAutomation:
             self.state.respawn_attempt_count += 1
             self.state.respawn_last_attempt_time = current_time
 
-            print(f"🔍 DEBUG: Incremented attempt count to {self.state.respawn_attempt_count}")
-            print(f"🔄 Respawn attempt #{self.state.respawn_attempt_count}/{RESPAWN_MAX_ATTEMPTS}")
+            print(
+                f"🔍 DEBUG: Incremented attempt count to {self.state.respawn_attempt_count}"
+            )
+            print(
+                f"🔄 Respawn attempt #{self.state.respawn_attempt_count}/{RESPAWN_MAX_ATTEMPTS}"
+            )
 
             # Take screenshot and convert to OpenCV format
             screenshot = self.screenshot_manager.take_screenshot()
@@ -337,7 +484,9 @@ class GameAutomation:
 
                 # Take another screenshot to verify if respawn was successful
                 verify_screenshot = self.screenshot_manager.take_screenshot()
-                verify_screenshot_cv = self.screenshot_manager.screenshot_to_cv2(verify_screenshot)
+                verify_screenshot_cv = self.screenshot_manager.screenshot_to_cv2(
+                    verify_screenshot
+                )
 
                 # Check if respawn button is still visible (indicates click failed/game frozen)
                 button_still_visible, _ = self.respawn_detector.detect_respawn_button(
@@ -378,13 +527,19 @@ class GameAutomation:
             else:
                 print(f"❌ All {RESPAWN_MAX_ATTEMPTS} respawn attempts failed!")
                 print(RESPAWN_FAILURE_MESSAGE)
-                print("🛑 Automation stopped. Please check the game and restart when ready.")
+                print(
+                    "🛑 Automation stopped. Please check the game and restart when ready."
+                )
                 self.state.automation_running = False
                 return False
 
         except Exception as e:
-            logger.error(f"Error during respawn attempt #{self.state.respawn_attempt_count}: {e}")
-            print(f"⚠️ Exception during respawn attempt #{self.state.respawn_attempt_count}")
+            logger.error(
+                f"Error during respawn attempt #{self.state.respawn_attempt_count}: {e}"
+            )
+            print(
+                f"⚠️ Exception during respawn attempt #{self.state.respawn_attempt_count}"
+            )
             if self.state.respawn_attempt_count < RESPAWN_MAX_ATTEMPTS:
                 delay_index = self.state.respawn_attempt_count - 1
                 next_delay = (
@@ -399,10 +554,14 @@ class GameAutomation:
                     f"❌ Exception occurred and maximum attempts ({RESPAWN_MAX_ATTEMPTS}) reached!"
                 )
                 print(RESPAWN_FAILURE_MESSAGE)
-                print("🛑 Automation stopped. Please check the game and restart when ready.")
+                print(
+                    "🛑 Automation stopped. Please check the game and restart when ready."
+                )
                 self.state.automation_running = False
                 return False
 
+
+    
     def _handle_health_and_mana_monitoring(self) -> bool:
         """Handle normal health and mana monitoring with potion usage.
 
@@ -410,13 +569,21 @@ class GameAutomation:
             True if special handling occurred, False for normal loop
         """
         try:
-            # Take screenshot and analyze both health and mana
-            screenshot = self.screenshot_manager.take_screenshot()
-            screenshot_cv = self.screenshot_manager.screenshot_to_cv2(screenshot)
+            # Fast screenshot capture with timing
+            screenshot_start = time.time()
 
+            #TODO: make sure using live capture?
+            if self.screenshot_manager.live_capture:
+                screenshot_cv = self.screenshot_manager.live_capture.capture_live()
+            else:
+                screenshot = self.screenshot_manager.take_screenshot()
+                screenshot_cv = self.screenshot_manager.screenshot_to_cv2(screenshot)
+                
             # Save debug screenshot if enabled
             if self.debug_mode:
-                self.screenshot_manager.save_debug_screenshot(screenshot, DEBUG_SCREENSHOT_NAME)
+                self.screenshot_manager.save_debug_screenshot(
+                    screenshot, DEBUG_SCREENSHOT_NAME
+                )
 
             # Check for empty health first (critical check)
             is_empty = self.health_detector.is_health_empty(screenshot_cv)
@@ -435,6 +602,16 @@ class GameAutomation:
                 return True  # Continue to respawn handling
 
             # Get health and mana percentages
+            # new async detection
+            try:
+                self._health_queue.put_nowait(screenshot_cv)
+            except Full:
+                # worker is still busy with previous frame; that's fine
+                pass
+            
+            is_empty = self._health_results['is_empty']
+            hp       = self._health_results['hp']
+            
             health_percent = self.health_detector.get_health_percentage(screenshot_cv)
             if self.debug_mode:
                 logger.debug(f"Health percentage: {health_percent:.2%}")
@@ -444,7 +621,9 @@ class GameAutomation:
                 logger.debug(f"Mana percentage: {mana_percent:.2%}")
 
             # Use both potions as needed
-            potion_results = self.potion_manager.use_both_potions(health_percent, mana_percent)
+            potion_results = self.potion_manager.use_both_potions(
+                health_percent, mana_percent
+            )
 
             # Handle recovery from previous emergency/death states
             if (self.state.empty_health_detected) and health_percent > 0.1:
@@ -480,7 +659,9 @@ class GameAutomation:
             True to continue special handling
         """
         if self.debug_mode:
-            logger.debug(f"_handle_empty_health_detection called, is_dead={self.state.is_dead}")
+            logger.debug(
+                f"_handle_empty_health_detection called, is_dead={self.state.is_dead}"
+            )
 
         if not self.state.is_dead:
             print("⚠️  " + ERROR_MESSAGES["empty_health_detected"])
@@ -490,7 +671,7 @@ class GameAutomation:
                 logger.debug("Confirming character death...")
 
             # Confirm character death and start respawn process
-            death_confirmed = self._confirm_character_death(screenshot_cv)
+            death_confirmed = self.confirm_character_death(screenshot_cv)
             if death_confirmed:
                 print("💀 Character death confirmed - starting respawn process...")
                 return True
@@ -499,7 +680,9 @@ class GameAutomation:
                 self.state.empty_health_detected = False
                 print("ℹ️  False alarm - character still alive")
                 if self.debug_mode:
-                    logger.debug("Death confirmation failed - continuing normal monitoring")
+                    logger.debug(
+                        "Death confirmation failed - continuing normal monitoring"
+                    )
                 return False
         else:
             if self.debug_mode:
@@ -507,7 +690,7 @@ class GameAutomation:
 
         return True
 
-    def _confirm_character_death(self, screenshot_cv: np.ndarray) -> bool:
+    def confirm_character_death(self, screenshot_cv: np.ndarray) -> bool:
         """Confirm character death and start respawn sequence.
 
         Args:
@@ -545,7 +728,9 @@ class GameAutomation:
             print(
                 f"⏳ Starting respawn wait timer ({RESPAWN_WAIT_DURATION}s) - button will be checked later"
             )
-            print("   Games need time to process death state before respawn is available.")
+            print(
+                "   Games need time to process death state before respawn is available."
+            )
 
         time.sleep(1.0)
         return True
@@ -585,7 +770,9 @@ class GameAutomation:
         print("- Press 'q' to quit")
 
         if self.debug_mode:
-            logger.debug(f"Templates loaded: {template_info['health_templates_loaded']}")
+            logger.debug(
+                f"Templates loaded: {template_info['health_templates_loaded']}"
+            )
 
     def use_skill(self, skill_id: int) -> bool:
         """Use a specific skill by ID.

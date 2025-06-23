@@ -1,7 +1,9 @@
+
 """Main entry point for the auto-snake game automation system.
 
 This module provides the command-line interface and main execution logic
-for the game automation system with proper argument parsing and error handling.
+for the game automation system with proper argument parsing, multiprocessing,
+and error handling.
 """
 
 import argparse
@@ -10,8 +12,9 @@ import sys
 import time
 from pathlib import Path
 from typing import NoReturn
+import multiprocessing as mp
 
-# Add the parent directory to sys.path for local imports when running as standalone script
+# Add the parent directory to sys.path for local imports when running as a standalone script
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -28,217 +31,171 @@ from auto_warrior.input_control import AutomationController
 
 
 def setup_logging(debug_mode: bool) -> None:
-    """Configure logging for the application.
-    
-    Args:
-        debug_mode: Whether to enable debug level logging
-    """
+    """Configure logging for the application."""
     log_level = logging.DEBUG if debug_mode else logging.INFO
-    
-    # Configure logging format
-    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    if debug_mode:
-        log_format = "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
-    
-    logging.basicConfig(
-        level=log_level,
-        format=log_format,
-        datefmt="%Y-%m-%d %H:%M:%S"
+    log_format = (
+        "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
+        if debug_mode
+        else "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    
-    # Set specific logger levels
+    logging.basicConfig(level=log_level, format=log_format, datefmt="%Y-%m-%d %H:%M:%S")
+    # Silence verbose external libs when not debugging
     if not debug_mode:
-        # Reduce noise from external libraries
         logging.getLogger("PIL").setLevel(logging.WARNING)
         logging.getLogger("cv2").setLevel(logging.WARNING)
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
-    """Create and configure argument parser.
-    
-    Returns:
-        Configured ArgumentParser instance
-    """
+    """Create and configure argument parser."""
     parser = argparse.ArgumentParser(
         description="Auto Snake Game Automation System",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 Examples:
-  %(prog)s                                    # Run with default settings
-  %(prog)s --debug                            # Enable debug mode
-  %(prog)s --images-path ./custom_images      # Use custom images directory
-  %(prog)s --health-threshold 0.3             # Set health threshold to 30%%
-
+  %(prog)s                      # Run with default settings
+  %(prog)s --debug              # Enable debug mode
+  %(prog)s --images-path ./img  # Use custom images directory
+  %(prog)s --health-threshold 0.3
 Version: {VERSION}
 Author: {AUTHOR}
 License: {LICENSE}
-
-For more information, visit: https://github.com/cyber-syntax/auto-snake
-        """
+"""
     )
-    
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug mode with detailed logging (increases CPU usage)"
-    )
-    
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument(
         "--images-path",
         type=Path,
         metavar="PATH",
-        help="Path to directory containing template images (default: ./images)"
+        help="Directory containing template images (default: ./images)",
     )
-    
     parser.add_argument(
         "--health-threshold",
         type=float,
         default=DEFAULT_HEALTH_THRESHOLD,
         metavar="THRESHOLD",
-        help=f"Health percentage threshold for potion usage (0.0-1.0, default: {DEFAULT_HEALTH_THRESHOLD})"
+        help=f"Health threshold for potion usage (0.0–1.0, default: {DEFAULT_HEALTH_THRESHOLD})",
     )
-    
     parser.add_argument(
         "--no-respawn-wait",
         action="store_true",
-        help="Click respawn button immediately when available (skip safety delay)"
+        help="Skip respawn safety delay",
     )
-    
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=f"%(prog)s {VERSION}"
-    )
-    
+    parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
     return parser
 
 
 def validate_arguments(args: argparse.Namespace) -> None:
-    """Validate command line arguments.
-    
-    Args:
-        args: Parsed command line arguments
-        
-    Raises:
-        ValueError: If arguments are invalid
-    """
-    # Validate health threshold
+    """Validate command line arguments."""
     if not 0.0 <= args.health_threshold <= 1.0:
-        raise ValueError(
-            f"Health threshold must be between 0.0 and 1.0, got {args.health_threshold}"
-        )
-    
-    # Validate images path if provided
-    if args.images_path is not None:
-        if not args.images_path.exists():
-            raise ValueError(f"Images path does not exist: {args.images_path}")
-        if not args.images_path.is_dir():
-            raise ValueError(f"Images path is not a directory: {args.images_path}")
+        raise ValueError(f"Health threshold must be between 0.0 and 1.0, got {args.health_threshold}")
+    if args.images_path and not args.images_path.is_dir():
+        raise ValueError(f"Images path is not a directory: {args.images_path}")
 
 
 def print_startup_banner(args: argparse.Namespace) -> None:
-    """Print application startup banner.
-    
-    Args:
-        args: Parsed command line arguments
-    """
+    """Print application startup banner."""
     print(f"Auto Snake Game Automation v{VERSION}")
-    print(f"Author: {AUTHOR}")
-    print(f"License: {LICENSE}")
-    print("=" * 50)
-    
-    print("\nStarting Game Automation System...")
+    print(f"Author: {AUTHOR}    License: {LICENSE}")
+    print("=" * 60)
     print(f"Debug mode: {'ENABLED' if args.debug else 'DISABLED'}")
     print(f"Health threshold: {args.health_threshold:.1%}")
-    print(f"Respawn wait: {'DISABLED' if args.no_respawn_wait else 'ENABLED (7.5s safety delay)'}")
-    
-    if args.images_path:
-        print(f"Images path: {args.images_path}")
-    else:
-        print("Images path: ./images (default)")
-    
-    print("\nSafety Notice:")
-    print("This tool is for educational purposes only.")
-    print("Please ensure you comply with game terms of service.")
-    print("=" * 50)
+    print(f"Respawn wait delay: {'OFF' if args.no_respawn_wait else 'ON'}")
+    print(f"Images path: {args.images_path or './images'}")
+    print("=" * 60)
 
 
 def run_automation_with_controller(automation: GameAutomation) -> None:
-    """Run automation with keyboard control.
-    
-    Args:
-        automation: GameAutomation instance to run
+    """
+    Run automation in a child process and listen for 'r' (restart) and 'q' (quit)
+    commands from the keyboard controller in the main process.
     """
     controller = AutomationController(automation.debug_mode)
-    
+
+    # Multiprocessing primitives
+    stop_event = mp.Event()
+    proc: mp.Process | None = None
+
+    def start_worker():
+        nonlocal proc
+        if proc and proc.is_alive():
+            print("⚠️ Automation already running.")
+            return
+        stop_event.clear()
+        proc = mp.Process(
+            target=automation._automation_worker,  # worker entrypoint
+            args=(automation.command_queue, automation.status_queue, stop_event, automation.init_params),
+            daemon=True,
+        )
+        proc.start()
+        print("🚀 Automation started.")
+
+    def stop_worker():
+        if proc and proc.is_alive():
+            stop_event.set()
+            proc.join(timeout=5.0)
+            if proc.is_alive():
+                proc.terminate()
+            print("🛑 Automation stopped.")
+
     try:
         controller.start_listening()
-        
-        # Main control loop
+        print("Press 'r' to (re)start, 'q' to quit.")
+
         while controller.is_main_running():
             if controller.is_automation_running():
-                try:
-                    automation.run_automation()
-                except Exception as e:
-                    logging.error(f"Automation error: {e}")
-                    print(f"Error in automation: {e}")
-                    print("Press 'r' to restart or 'q' to quit")
-                finally:
-                    controller.set_automation_running(False)
-            
+                # User pressed 'r'
+                start_worker()
+                controller.set_automation_running(False)
+
+            # if controller.is_quit_requested():
+            #     # User pressed 'q'
+            #     stop_worker()
+            #     break
+
+            # Optional: handle dynamic threshold changes
+            # e.g. controller could push commands into automation.command_queue
+
             time.sleep(MAIN_LOOP_DELAY)
-            
+
     except KeyboardInterrupt:
-        print("\nShutdown requested by user")
+        print("\n❎ Shutdown requested via Ctrl+C.")
+
     finally:
+        stop_worker()
         controller.stop_listening()
 
 
 def main() -> None:
-    """Main entry point for the application."""
     parser = create_argument_parser()
     args = parser.parse_args()
-    
     try:
-        # Validate arguments
         validate_arguments(args)
-        
-        # Setup logging
         setup_logging(args.debug)
-        
-        # Print startup information
         print_startup_banner(args)
-        
-        # Create automation instance
+
+        # Instantiate automation (but do not call run_automation directly)
         automation = GameAutomation(
             debug_mode=args.debug,
             images_path=args.images_path,
-            health_threshold=args.health_threshold
+            health_threshold=args.health_threshold,
         )
-        
-        # Run automation with controller
+
         run_automation_with_controller(automation)
-        
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
+
+    except ValueError as ve:
+        print(f"Argument error: {ve}", file=sys.stderr)
         sys.exit(1)
-    except AutoSnakeError as e:
-        logging.error(f"Automation error: {e}")
-        print(f"Automation error: {e}", file=sys.stderr)
-        if e.details:
-            print(f"Details: {e.details}", file=sys.stderr)
-        sys.exit(1)
-    except KeyboardInterrupt:
-        print("\nShutdown requested")
-        sys.exit(0)
+    except AutoSnakeError as ae:
+        logging.error(f"Automation error: {ae}")
+        print(f"Automation error: {ae}", file=sys.stderr)
+        sys.exit(2)
     except Exception as e:
-        logging.exception("Unexpected error occurred")
+        logging.exception("Unexpected error")
         print(f"Unexpected error: {e}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(99)
 
 
 def cli_entry_point() -> NoReturn:
-    """CLI entry point that never returns."""
     main()
     sys.exit(0)
 
